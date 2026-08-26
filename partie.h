@@ -15,6 +15,7 @@ public:
     Partie(int largeur, int hauteur);
     ~Partie();
 
+    void nouvellePartie();
     void nouvelleManche();
     void avancer(float dt);
 
@@ -48,7 +49,11 @@ private:
     int pointsCourants = 0;
     int bonusCourant = 0;
     float tempsAvantDepart = 0.0f;
+    float tempsAvantSuite = 0.0f;
 
+    int nbCasesBloquees() const;
+    float dureeRemplissageNiveau() const;
+    float delaiDepartNiveau() const;
     void lancerEcoulement();
     void terminerManche();
 };

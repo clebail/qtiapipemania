@@ -1,4 +1,5 @@
 #include <QtGlobal>
+#include <QtMath>
 #include "partie.h"
 
 // Bareme : la penalite de remplacement est celle du jeu d'origine, les points
@@ -7,17 +8,33 @@
 #define PENALITE_REMPLACEMENT   50
 // Chaque case deja raccordee en aval du flux quand l'objectif tombe.
 #define POINTS_BONUS_AVANCE     25
-// Longueur minimale du pipeline pour que la manche soit reussie.
-#define LONGUEUR_MINIMALE       20
-// Secondes laissees au joueur pour poser des tuyaux avant que le flux parte.
-#define DELAI_DEPART            15.0f
+// Progression de la difficulte, niveau apres niveau. La longueur minimale mene
+// la progression parce qu'elle est lisible pour le joueur ; la vitesse du flux
+// ne suit que doucement, avec un plancher, car elle agit sur l'ecart entre le
+// debit du flux et celui de la pose : quelques centiemes suffisent a rendre le
+// jeu injouable.
+#define LONGUEUR_BASE           20
+#define LONGUEUR_PAS            5
+#define DELAI_BASE              15.0f
+#define DELAI_MIN               6.0f
+#define DUREE_BASE              0.30f
+#define DUREE_FACTEUR           0.95f
+#define DUREE_MIN               0.12f
+// Cases infranchissables : levier de difficulte qui joue sur la reflexion et
+// non sur le rythme, donc sans risque d'approcher le point de bascule ou le
+// flux irait plus vite que la main du joueur.
+#define BLOQUEES_PAS            2
+#define BLOQUEES_MAX            24
+// Temps d'affichage du resultat avant d'enchainer.
+#define PAUSE_REUSSIE           2.5f
+#define PAUSE_PERDUE            3.5f
 
 Partie::Partie(int largeur, int hauteur) {
     plat = new Game(largeur, hauteur);
     ecoul = new Ecoulement(plat);
     fil = new PieceFile(FILE_SIZE);
 
-    nouvelleManche();
+    nouvellePartie();
 }
 
 Partie::~Partie() {
@@ -26,13 +43,35 @@ Partie::~Partie() {
     delete fil;
 }
 
+void Partie::nouvellePartie() {
+    niveauCourant = 1;
+    pointsCourants = 0;
+    nouvelleManche();
+}
+
 void Partie::nouvelleManche() {
-    // Le plateau n'est pas efface ici : c'est a l'appelant de le preparer avant
-    // (generateur de test aujourd'hui, nouveau niveau plus tard).
+    plat->reinitialiser(nbCasesBloquees());
     ecoul->reinitialiser();
-    tempsAvantDepart = DELAI_DEPART;
+    ecoul->setDureeRemplissage(dureeRemplissageNiveau());
+
+    tempsAvantDepart = delaiDepartNiveau();
     bonusCourant = 0;
     etatCourant = epAttente;
+}
+
+// Le flux accelere doucement, mais jamais au-dela du plancher : passe ce point
+// il irait plus vite que la main du joueur et toute manche serait perdue.
+float Partie::dureeRemplissageNiveau() const {
+    return qMax(DUREE_MIN, (float)(DUREE_BASE * qPow(DUREE_FACTEUR, niveauCourant - 1)));
+}
+
+// Aucune au premier niveau : on laisse le joueur decouvrir la grille libre.
+int Partie::nbCasesBloquees() const {
+    return qMin(BLOQUEES_MAX, (niveauCourant - 1) * BLOQUEES_PAS);
+}
+
+float Partie::delaiDepartNiveau() const {
+    return qMax(DELAI_MIN, DELAI_BASE - (niveauCourant - 1));
 }
 
 void Partie::lancerEcoulement() {
@@ -48,7 +87,7 @@ void Partie::terminerManche() {
     pointsCourants += traversees * POINTS_PAR_CASE;
     bonusCourant = 0;
 
-    if(traversees >= LONGUEUR_MINIMALE) {
+    if(traversees >= longueurMinimale()) {
         // La manche s'arrete des l'objectif atteint : sans bonus, tout ce que le
         // joueur a construit au-dela ne rapporterait rien et le score serait le
         // meme a chaque reussite. On compte donc la tuyauterie deja raccordee en
@@ -56,8 +95,10 @@ void Partie::terminerManche() {
         bonusCourant = ecoul->casesEnAval() * POINTS_BONUS_AVANCE;
         pointsCourants += bonusCourant;
         etatCourant = epReussie;
+        tempsAvantSuite = PAUSE_REUSSIE;
     } else {
         etatCourant = epPerdue;
+        tempsAvantSuite = PAUSE_PERDUE;
     }
 }
 
@@ -80,13 +121,26 @@ void Partie::avancer(float dt) {
         // indefiniment. Soit le flux s'arrete de lui-meme, et c'est alors la
         // longueur atteinte qui decide de l'issue -- une fuite n'est pas une
         // defaite en soi.
-        if(ecoul->nbCasesTraversees() >= LONGUEUR_MINIMALE || etatFlux != eEnCours) {
+        if(ecoul->nbCasesTraversees() >= longueurMinimale() || etatFlux != eEnCours) {
             terminerManche();
         }
         break;
     }
 
-    default:
+    case epReussie:
+    case epPerdue:
+        // On laisse le resultat affiche un instant, puis on enchaine : niveau
+        // suivant si la manche est reussie, nouvelle partie sinon.
+        tempsAvantSuite -= dt;
+
+        if(tempsAvantSuite <= 0.0f) {
+            if(etatCourant == epReussie) {
+                niveauCourant++;
+                nouvelleManche();
+            } else {
+                nouvellePartie();
+            }
+        }
         break;
     }
 }
@@ -100,8 +154,12 @@ bool Partie::peutPoser(int col, int row) const {
         return false;
     }
 
-    // Case deja traversee par le fluide, ou reservoir : intouchables.
-    return !ecoul->estRempli(col, row) && plat->getTypePiece(col, row) != tpReservoir;
+    ETypePiece actuelle = plat->getTypePiece(col, row);
+
+    // Case deja traversee par le fluide, reservoir, obstacle : intouchables.
+    return !ecoul->estRempli(col, row)
+           && actuelle != tpReservoir
+           && actuelle != tpBloque;
 }
 
 bool Partie::poserPiece(int col, int row) {
@@ -131,8 +189,6 @@ int Partie::score() const {
     return pointsCourants;
 }
 
-// Reste a 1 tant que la progression par niveaux n'est pas branchee : c'est
-// nouvelleManche() qui l'incrementera, une fois la manche precedente reussie.
 int Partie::niveau() const {
     return niveauCourant;
 }
@@ -146,11 +202,11 @@ int Partie::casesTraversees() const {
 }
 
 int Partie::longueurMinimale() const {
-    return LONGUEUR_MINIMALE;
+    return LONGUEUR_BASE + LONGUEUR_PAS * (niveauCourant - 1);
 }
 
 float Partie::fractionAvantDepart() const {
-    return tempsAvantDepart / DELAI_DEPART;
+    return tempsAvantDepart / delaiDepartNiveau();
 }
 
 Game* Partie::plateau() const {

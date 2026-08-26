@@ -6,7 +6,7 @@
 #define TAILLE_CASE                 54
 
 typedef enum _ETypePiece {
-    tpNone, tpReservoir, tpHorizontal, tpVertical, tpCoudeHautGauche, tpCoudeHautDroite, tpCoudeBasGauche, tpCoudeBasDroite, tpCroix, tpBombe
+    tpNone, tpReservoir, tpHorizontal, tpVertical, tpCoudeHautGauche, tpCoudeHautDroite, tpCoudeBasGauche, tpCoudeBasDroite, tpCroix, tpBombe, tpBloque
 } ETypePiece;
 
 typedef enum _ESens {

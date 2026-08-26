@@ -14,6 +14,9 @@ static const QColor cLiquideVif  (0x8c, 0xf5, 0x9e);
 static const QColor cCuve        (0xf0, 0xc0, 0x20);
 static const QColor cCuveOmbre   (0x8a, 0x66, 0x00);
 static const QColor cBombe       (0x2a, 0x2a, 0x32);
+static const QColor cBloque      (0x4a, 0x4e, 0x5e);
+static const QColor cBloqueClair (0x70, 0x76, 0x8a);
+static const QColor cBloqueOmbre (0x24, 0x26, 0x30);
 static const QColor cMeche       (0xd8, 0x50, 0x30);
 
 // Proportions du tuyau, en fraction de la taille d'une case.
@@ -124,6 +127,39 @@ static void dessinerCuve(QPainter& painter, const QRectF& tuile) {
     painter.drawEllipse(cuve.adjusted(rayon*0.35, rayon*0.3, -rayon*1.1, -rayon*1.15));
 }
 
+// Bloc plein, biseaute : rien a voir avec un tuyau, on comprend au premier
+// coup d'oeil que la case est condamnee.
+static void dessinerBloque(QPainter& painter, const QRectF& tuile) {
+    qreal marge = tuile.width() * 0.10;
+    qreal biseau = tuile.width() * 0.09;
+    QRectF bloc = tuile.adjusted(marge, marge, -marge, -marge);
+
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(cBloque);
+    painter.drawRect(bloc);
+
+    // Aretes claires en haut a gauche, sombres en bas a droite.
+    QPainterPath clair;
+    clair.moveTo(bloc.bottomLeft());
+    clair.lineTo(bloc.topLeft());
+    clair.lineTo(bloc.topRight());
+    clair.lineTo(bloc.topRight() + QPointF(-biseau, biseau));
+    clair.lineTo(bloc.topLeft() + QPointF(biseau, biseau));
+    clair.lineTo(bloc.bottomLeft() + QPointF(biseau, -biseau));
+    painter.setBrush(cBloqueClair);
+    painter.drawPath(clair);
+
+    QPainterPath ombre;
+    ombre.moveTo(bloc.topRight());
+    ombre.lineTo(bloc.bottomRight());
+    ombre.lineTo(bloc.bottomLeft());
+    ombre.lineTo(bloc.bottomLeft() + QPointF(biseau, -biseau));
+    ombre.lineTo(bloc.bottomRight() + QPointF(-biseau, -biseau));
+    ombre.lineTo(bloc.topRight() + QPointF(-biseau, biseau));
+    painter.setBrush(cBloqueOmbre);
+    painter.drawPath(ombre);
+}
+
 static void dessinerBombe(QPainter& painter, const QRectF& tuile) {
     qreal rayon = tuile.width() * 0.28;
     QRectF corps(tuile.center().x() - rayon, tuile.center().y() - rayon*0.9, 2*rayon, 2*rayon);
@@ -157,6 +193,12 @@ static void tracerPiece(QPainter& painter, const QRectF& tuile, ETypePiece type,
 
     if(type == tpBombe) {
         dessinerBombe(painter, tuile);
+        painter.restore();
+        return;
+    }
+
+    if(type == tpBloque) {
+        dessinerBloque(painter, tuile);
         painter.restore();
         return;
     }
@@ -215,7 +257,7 @@ void dessinerPiece(QPainter& painter, const QRectF& tuile, ETypePiece type, ESen
 
 void dessinerLiquide(QPainter& painter, const QRectF& tuile, ETypePiece type, ESens sens,
                      ESens entree, float progression) {
-    if(progression <= 0.0f || type == tpNone || type == tpBombe) {
+    if(progression <= 0.0f || type == tpNone || type == tpBombe || type == tpBloque) {
         return;
     }
 

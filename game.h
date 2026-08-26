@@ -9,6 +9,8 @@ public:
     Game(int largeur, int hauteur);
     ~Game();
 
+    void reinitialiser(int nbBloquees = 0);
+
     int getLargeur() const;
     int getHauteur() const;
     int getSize() const;

@@ -34,7 +34,8 @@ MainWindow::~MainWindow() {
 void MainWindow::rafraichir() {
     depart->setFraction(p->fractionAvantDepart());
     panneau->update();
-
+    // La grille aussi : un changement d'etat peut signifier un plateau neuf.
+    game->update();
 }
 
 void MainWindow::battement() {
