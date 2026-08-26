@@ -28,7 +28,9 @@ Piece PieceFile::depiler() {
 }
 
 Piece PieceFile::genererPiece() {
-    ETypePiece type = (ETypePiece)QRandomGenerator::global()->bounded((int)tpHorizontal, (int)tpBombe + 1);
+    // Borne haute a tpCroix : la bombe est volontairement hors du tirage tant
+    // qu'elle n'est pas geree par l'ecoulement.
+    ETypePiece type = (ETypePiece)QRandomGenerator::global()->bounded((int)tpHorizontal, (int)tpCroix + 1);
     ESens sens = (ESens)QRandomGenerator::global()->bounded((int)sHaut, (int)sDroite + 1);
 
     return { type, sens };

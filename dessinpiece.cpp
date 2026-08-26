@@ -21,6 +21,7 @@ static const qreal fContour = 0.46;
 static const qreal fCorps   = 0.40;
 static const qreal fReflet  = 0.30;
 static const qreal fCanal   = 0.20;
+static const qreal fCuve    = 0.27;
 
 static bool estCoude(ETypePiece type) {
     return type >= tpCoudeHautGauche && type <= tpCoudeBasDroite;
@@ -47,11 +48,19 @@ QPainterPath cheminTuyau(const QRectF& tuile, ETypePiece type, ESens sens, ESens
     }
 
     if(type == tpReservoir) {
-        // Pas de demi-segment d'entree : la cuve pousse le liquide vers sa
-        // sortie sur toute la duree.
+        // Pas de demi-segment d'entree : le liquide sort de la cuve. Il demarre
+        // juste sous le bord du rond (qui est redessine par-dessus), pour en
+        // paraitre issu au lieu de le traverser, et parcourt le reste de la
+        // case sur toute la duree.
+        //   fCuve * 2 = rayon de la cuve rapporte a la demi-case ; le facteur
+        //   0.9 fait mordre le depart sous le rond, sans jointure visible.
+        qreal depuisCentre = fCuve * 2.0 * 0.9;
+
         foreach(ESens sortie, ouv) {
-            chemin.moveTo(centre);
-            chemin.lineTo(centre + (milieuBord(tuile, sortie) - centre) * p);
+            QPointF bord = milieuBord(tuile, sortie);
+            QPointF depart = centre + (bord - centre) * depuisCentre;
+            chemin.moveTo(depart);
+            chemin.lineTo(depart + (bord - depart) * p);
         }
 
         return chemin;
@@ -104,7 +113,7 @@ QPainterPath cheminTuyau(const QRectF& tuile, ETypePiece type, ESens sens, ESens
 }
 
 static void dessinerCuve(QPainter& painter, const QRectF& tuile) {
-    qreal rayon = tuile.width() * 0.27;
+    qreal rayon = tuile.width() * fCuve;
     QRectF cuve(tuile.center().x() - rayon, tuile.center().y() - rayon, 2*rayon, 2*rayon);
 
     painter.setPen(QPen(cCuveOmbre, tuile.width() * 0.05));
@@ -220,5 +229,12 @@ void dessinerLiquide(QPainter& painter, const QRectF& tuile, ETypePiece type, ES
                                     Qt::SolidLine, Qt::FlatCap, Qt::RoundJoin));
     painter.strokePath(chemin, QPen(cLiquideVif, taille * fCanal * 0.35,
                                     Qt::SolidLine, Qt::FlatCap, Qt::RoundJoin));
+
+    if(type == tpReservoir) {
+        // La cuve repasse par-dessus : le depart du liquide, coupe droit, se
+        // trouve cache sous le rond, qu'il epouse donc exactement.
+        dessinerCuve(painter, tuile);
+    }
+
     painter.restore();
 }
