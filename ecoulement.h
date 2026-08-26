@@ -28,6 +28,8 @@ public:
     // d'une case. Si un troisieme utilisateur apparait, l'extraire dans un
     // module de geometrie de tuyaux.
     static QVector<ESens> ouvertures(const ETypePiece& typePiece, const ESens& sens);
+    // Cotes par lesquels le flux peut ressortir, sachant par ou il est entre.
+    static QVector<ESens> sorties(const ETypePiece& typePiece, const ESens& sens, const ESens& entree);
 private:
     const Game *plateau;
     unsigned char* remplis = nullptr;

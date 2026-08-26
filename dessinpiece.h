@@ -14,7 +14,11 @@
 
 // Ligne mediane d'une piece, tronquee a la fraction p (0 a 1) en partant du
 // cote `entree`. Avec p = 1 on obtient la piece entiere.
-QPainterPath cheminTuyau(const QRectF& tuile, ETypePiece type, ESens sens, ESens entree, float p);
+// suivreLeFlux : restreint le trace aux sorties reellement empruntees par le
+// fluide (une croix est alors traversee tout droit). A false, on obtient la
+// geometrie complete de la piece, celle qu'il faut dessiner.
+QPainterPath cheminTuyau(const QRectF& tuile, ETypePiece type, ESens sens, ESens entree, float p,
+                         bool suivreLeFlux = false);
 
 void dessinerPiece(QPainter& painter, const QRectF& tuile, ETypePiece type, ESens sens);
 void dessinerLiquide(QPainter& painter, const QRectF& tuile, ETypePiece type, ESens sens,

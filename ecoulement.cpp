@@ -74,11 +74,9 @@ EEtat Ecoulement::avancer(float dt) {
         int x = idx % largeur;
         int y = idx / largeur;
 
-        // On parcourt toutes les ouvertures, y compris celle d'entree : la case
-        // d'ou l'on vient est deja marquee remplie, donc elle sera ignoree plus
-        // bas. Ca evite un cas particulier pour le reservoir, dont l'unique
-        // ouverture est justement celle enregistree comme son "entree".
-        foreach(ESens ouverture, ouvertures(plateau->getTypePiece(x, y), plateau->getSens(x, y))) {
+        foreach(ESens ouverture, sorties(plateau->getTypePiece(x, y),
+                                         plateau->getSens(x, y),
+                                         (ESens)entrees[idx])) {
             ESens sensEntre = sensReciproques[(unsigned char)ouverture];
             int nextX = x + deltas[(unsigned char)ouverture].dx;
             int nextY = y + deltas[(unsigned char)ouverture].dy;
@@ -149,7 +147,9 @@ int Ecoulement::casesEnAval() const {
         int x = idx % largeur;
         int y = idx / largeur;
 
-        foreach(ESens ouverture, ouvertures(plateau->getTypePiece(x, y), plateau->getSens(x, y))) {
+        foreach(ESens ouverture, sorties(plateau->getTypePiece(x, y),
+                                         plateau->getSens(x, y),
+                                         (ESens)entrees[idx])) {
             ESens sensEntre = sensReciproques[(unsigned char)ouverture];
             int nextX = x + deltas[(unsigned char)ouverture].dx;
             int nextY = y + deltas[(unsigned char)ouverture].dy;
@@ -206,6 +206,38 @@ ESens Ecoulement::entree(int col, int row) const {
     }
 
     return sHaut;
+}
+
+QVector<ESens> Ecoulement::sorties(const ETypePiece& typePiece, const ESens& sens, const ESens& entree) {
+    QVector<ESens> ouv = ouvertures(typePiece, sens);
+    QVector<ESens> resultat;
+
+    // Le reservoir n'a pas d'entree : ce qui y est enregistre est sa sortie.
+    if(typePiece == tpReservoir) {
+        return ouv;
+    }
+
+    // La croix est un croisement, pas un carrefour : le flux la traverse tout
+    // droit. La faire diverger vers ses trois autres cotes ouvrirait a chaque
+    // fois deux branches presque jamais raccordees, donc une fuite immediate :
+    // la piece deviendrait un piege au lieu d'un moyen de croiser son tuyau.
+    if(typePiece == tpCroix) {
+        ESens tout_droit = sensReciproques[(unsigned char)entree];
+
+        if(ouv.contains(tout_droit)) {
+            resultat << tout_droit;
+        }
+
+        return resultat;
+    }
+
+    foreach(ESens ouverture, ouv) {
+        if(ouverture != entree) {
+            resultat << ouverture;
+        }
+    }
+
+    return resultat;
 }
 
 QVector<ESens> Ecoulement::ouvertures(const ETypePiece& typePiece, const ESens& sens) {

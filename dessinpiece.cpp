@@ -41,7 +41,8 @@ static QPointF milieuBord(const QRectF& t, ESens sens) {
     return QPointF();
 }
 
-QPainterPath cheminTuyau(const QRectF& tuile, ETypePiece type, ESens sens, ESens entree, float p) {
+QPainterPath cheminTuyau(const QRectF& tuile, ETypePiece type, ESens sens, ESens entree, float p,
+                         bool suivreLeFlux) {
     QPainterPath chemin;
     QPointF centre = tuile.center();
     QVector<ESens> ouv = Ecoulement::ouvertures(type, sens);
@@ -103,8 +104,9 @@ QPainterPath cheminTuyau(const QRectF& tuile, ETypePiece type, ESens sens, ESens
 
     if(p > 0.5f) {
         float ratioSortie = (p - 0.5f) * 2.0f;
+        QVector<ESens> vers = suivreLeFlux ? Ecoulement::sorties(type, sens, entree) : ouv;
 
-        foreach(ESens sortie, ouv) {
+        foreach(ESens sortie, vers) {
             if(sortie != entree) {
                 chemin.moveTo(centre);
                 chemin.lineTo(centre + (milieuBord(tuile, sortie) - centre) * ratioSortie);
@@ -261,7 +263,7 @@ void dessinerLiquide(QPainter& painter, const QRectF& tuile, ETypePiece type, ES
         return;
     }
 
-    QPainterPath chemin = cheminTuyau(tuile, type, sens, entree, progression);
+    QPainterPath chemin = cheminTuyau(tuile, type, sens, entree, progression, true);
     qreal taille = tuile.width();
 
     painter.save();
