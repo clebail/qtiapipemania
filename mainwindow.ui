@@ -49,10 +49,13 @@
         <number>0</number>
        </property>
        <item>
-        <widget class="WPieceFile" name="file" native="true"/>
+        <widget class="WPanneau" name="panneau" native="true"/>
        </item>
        <item>
         <widget class="WGame" name="game" native="true"/>
+       </item>
+       <item>
+        <widget class="WDepart" name="depart" native="true"/>
        </item>
       </layout>
      </widget>
@@ -66,13 +69,6 @@
        </sizepolicy>
       </property>
       <layout class="QHBoxLayout" name="horizontalLayout_2">
-       <item>
-        <widget class="QPushButton" name="pbFlood">
-         <property name="text">
-          <string>Flood</string>
-         </property>
-        </widget>
-       </item>
        <item>
         <widget class="QPushButton" name="pbGen">
          <property name="text">
@@ -100,13 +96,6 @@
          </property>
         </widget>
        </item>
-       <item>
-        <widget class="QLabel" name="lbScore">
-         <property name="text">
-          <string>Score : 0</string>
-         </property>
-        </widget>
-       </item>
       </layout>
      </widget>
     </item>
@@ -115,15 +104,21 @@
  </widget>
  <customwidgets>
   <customwidget>
+   <class>WDepart</class>
+   <extends>QWidget</extends>
+   <header>wdepart.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
    <class>WGame</class>
    <extends>QWidget</extends>
    <header>wgame.h</header>
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>WPieceFile</class>
+   <class>WPanneau</class>
    <extends>QWidget</extends>
-   <header>wpiecefile.h</header>
+   <header>wpanneau.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

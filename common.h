@@ -22,4 +22,11 @@ typedef enum _EEtat {
     eEnCours, eTermine, eFuite
 } EEtat;
 
+typedef enum _EEtatPartie {
+    epAttente,      // le joueur pose ses tuyaux, le flux n'est pas encore parti
+    epEcoulement,   // le flux progresse
+    epReussie,      // manche gagnee : longueur minimale atteinte
+    epPerdue        // manche perdue : le flux s'est arrete trop tot
+} EEtatPartie;
+
 #endif // COMMON_H

@@ -14,9 +14,11 @@ SOURCES += \
     game.cpp \
     main.cpp \
     mainwindow.cpp \
+    partie.cpp \
     piecefile.cpp \
+    wdepart.cpp \
     wgame.cpp \
-    wpiecefile.cpp
+    wpanneau.cpp
 
 HEADERS += \
     common.h \
@@ -24,9 +26,11 @@ HEADERS += \
     ecoulement.h \
     game.h \
     mainwindow.h \
+    partie.h \
     piecefile.h \
+    wdepart.h \
     wgame.h \
-    wpiecefile.h
+    wpanneau.h
 
 FORMS += \
     mainwindow.ui

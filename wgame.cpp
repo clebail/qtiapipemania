@@ -7,18 +7,9 @@
 WGame::WGame(QWidget *parent) : QWidget{parent} {
 }
 
-void WGame::setGame(Game *game) {
-    this->game = game;
+void WGame::setPartie(Partie *partie) {
+    this->partie = partie;
     repaint();
-}
-
-void WGame::setEcoulement(Ecoulement *ecoulement) {
-    this->ecoulement = ecoulement;
-    repaint();
-}
-
-void WGame::setPieceFile(PieceFile *pieceFile) {
-    this->pieceFile = pieceFile;
 }
 
 int WGame::spriteWidth() const {
@@ -34,44 +25,51 @@ void WGame::paintEvent(QPaintEvent *) {
 
     painter.fillRect(rect(), Qt::black);
 
-    if(game == nullptr || ecoulement == nullptr) {
+    if(partie == nullptr) {
         return;
     }
 
+    Game *plateau = partie->plateau();
+    Ecoulement *ecoul = partie->ecoulement();
     int spriteW = spriteWidth();
     int spriteH = spriteHeight();
-    int margeX = (size().width() - game->getLargeur() * spriteW) / 2;
-    int margeY = (size().height() - game->getHauteur() * spriteH) / 2;
+    int margeX = (size().width() - plateau->getLargeur() * spriteW) / 2;
+    int margeY = (size().height() - plateau->getHauteur() * spriteH) / 2;
 
     painter.setRenderHint(QPainter::Antialiasing, true);
 
     // Deux passages : toutes les pieces, puis tout le liquide. Ca evite qu'une
     // case repeigne son fond par-dessus le liquide de sa voisine.
-    for(int y=0;y<game->getHauteur();y++) {
-        for(int x=0;x<game->getLargeur();x++) {
+    for(int y=0;y<plateau->getHauteur();y++) {
+        for(int x=0;x<plateau->getLargeur();x++) {
             QRectF dest(x*spriteW + margeX, y*spriteH + margeY, spriteW, spriteH);
-            dessinerPiece(painter, dest, game->getTypePiece(x, y), game->getSens(x, y));
+            dessinerPiece(painter, dest, plateau->getTypePiece(x, y), plateau->getSens(x, y));
         }
     }
 
-    for(int y=0;y<game->getHauteur();y++) {
-        for(int x=0;x<game->getLargeur();x++) {
-            float p = ecoulement->progression(x, y);
+    for(int y=0;y<plateau->getHauteur();y++) {
+        for(int x=0;x<plateau->getLargeur();x++) {
+            float p = ecoul->progression(x, y);
 
             if(p > 0.0f) {
                 QRectF dest(x*spriteW + margeX, y*spriteH + margeY, spriteW, spriteH);
-                dessinerLiquide(painter, dest, game->getTypePiece(x, y), game->getSens(x, y),
-                                ecoulement->entree(x, y), p);
+                dessinerLiquide(painter, dest, plateau->getTypePiece(x, y), plateau->getSens(x, y),
+                                ecoul->entree(x, y), p);
             }
         }
     }
 }
 
 void WGame::mouseReleaseEvent(QMouseEvent *event) {
+    if(partie == nullptr) {
+        return;
+    }
+
+    Game *plateau = partie->plateau();
     int spriteW = spriteWidth();
     int spriteH = spriteHeight();
-    int margeX = (size().width() - game->getLargeur() * spriteW) / 2;
-    int margeY = (size().height() - game->getHauteur() * spriteH) / 2;
+    int margeX = (size().width() - plateau->getLargeur() * spriteW) / 2;
+    int margeY = (size().height() - plateau->getHauteur() * spriteH) / 2;
     int px = event->pos().x() - margeX;
     int py = event->pos().y() - margeY;
 
@@ -81,29 +79,15 @@ void WGame::mouseReleaseEvent(QMouseEvent *event) {
     // -40 / 54 vaut 0, donc un clic a gauche de la grille retomberait sur la
     // colonne 0 au lieu d'etre rejete.
     if(px < 0 || py < 0
-       || px >= game->getLargeur() * spriteW
-       || py >= game->getHauteur() * spriteH) {
+       || px >= plateau->getLargeur() * spriteW
+       || py >= plateau->getHauteur() * spriteH) {
         return;
     }
 
-    int x = px / spriteW;
-    int y = py / spriteH;
-
-    ETypePiece actuelle = game->getTypePiece(x, y);
-
-    // Case deja traversee par le fluide, ou reservoir : rien a faire. Sans ce
-    // test la piece serait depilee pour rien, puisque setTypePiece refuse
-    // d'ecraser le reservoir.
-    if(ecoulement->estRempli(x, y) || actuelle == tpReservoir) {
-        return;
+    // Les regles du coup (case interdite, penalite de remplacement) sont dans
+    // Partie : le widget ne fait que traduire un clic en coordonnees.
+    if(partie->poserPiece(px / spriteW, py / spriteH)) {
+        repaint();
+        emit pieceDeposee();
     }
-
-    bool remplacement = (actuelle != tpNone);
-
-    Piece piece = pieceFile->depiler();
-    game->setTypePiece(x, y, piece.type);
-    game->setSens(x, y, piece.sens);
-    repaint();
-
-    emit pieceDeposee(remplacement);
 }

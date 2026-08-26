@@ -4,6 +4,9 @@
 #include <QVector>
 #include "common.h"
 
+// Nombre de pieces visibles dans la file.
+#define FILE_SIZE       5
+
 struct Piece {
     ETypePiece type;
     ESens sens;

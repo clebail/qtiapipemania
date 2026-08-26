@@ -4,9 +4,7 @@
 #include <QMainWindow>
 #include <QTimer>
 #include "ui_mainwindow.h"
-#include "game.h"
-#include "ecoulement.h"
-#include "piecefile.h"
+#include "partie.h"
 
 class MainWindow : public QMainWindow, private Ui::MainWindow
 {
@@ -16,20 +14,14 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 private:
-    Game *g;
-    Ecoulement *e;
-    PieceFile *pf;
-    QTimer floodTimer;
-    int score = 0;
+    Partie *p;
+    QTimer horloge;
 
-    void majScore();
-    void terminerManche();
+    void rafraichir();
 private slots:
-    void on_pbFlood_clicked();
     void on_pbGen_clicked();
-    void compterPiece(bool remplacement);
-    // Nom volontairement hors du motif on_<objet>_<signal> : le timer est
-    // connecte explicitement, pas via connectSlotsByName.
-    void avancerFlood();
+    // Nom volontairement hors du motif on_<objet>_<signal> : l'horloge est
+    // connectee explicitement, pas via connectSlotsByName.
+    void battement();
 };
 #endif // MAINWINDOW_H
