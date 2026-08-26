@@ -20,9 +20,14 @@ private:
     Ecoulement *e;
     PieceFile *pf;
     QTimer floodTimer;
+    int score = 0;
+
+    void majScore();
+    void terminerManche();
 private slots:
     void on_pbFlood_clicked();
     void on_pbGen_clicked();
+    void compterPiece(bool remplacement);
     // Nom volontairement hors du motif on_<objet>_<signal> : le timer est
     // connecte explicitement, pas via connectSlotsByName.
     void avancerFlood();

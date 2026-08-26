@@ -1,5 +1,12 @@
 #include "mainwindow.h"
 
+// Bareme : la penalite de remplacement est celle du jeu d'origine, les points
+// par case s'y calent (un remplacement coute une case de progression).
+#define POINTS_PAR_CASE         50
+#define PENALITE_REMPLACEMENT   50
+// Longueur minimale du pipeline pour que la manche soit reussie.
+#define LONGUEUR_MINIMALE       20
+
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), floodTimer() {
     setupUi(this);
 
@@ -13,6 +20,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), floodTimer() {
     file->setPieceFile(pf);
 
     connect(game, &WGame::pieceDeposee, file, &WPieceFile::animerDepilage);
+    connect(game, &WGame::pieceDeposee, this, &MainWindow::compterPiece);
 
     int spriteW = TAILLE_CASE;
     int spriteH = TAILLE_CASE;
@@ -34,26 +42,54 @@ MainWindow::~MainWindow() {
     delete pf;
 }
 
+void MainWindow::majScore() {
+    lbScore->setText(tr("Score : %1").arg(score));
+}
+
+void MainWindow::compterPiece(bool remplacement) {
+    if(remplacement) {
+        score -= PENALITE_REMPLACEMENT;
+        majScore();
+    }
+}
+
+void MainWindow::terminerManche() {
+    floodTimer.stop();
+
+    int traversees = e->nbCasesTraversees();
+    score += traversees * POINTS_PAR_CASE;
+    majScore();
+
+    if(traversees >= LONGUEUR_MINIMALE) {
+        lbStatut->setText(tr("Manche reussie : %1 cases").arg(traversees));
+    } else {
+        lbStatut->setText(tr("Perdu : %1 cases sur %2 requises")
+                          .arg(traversees).arg(LONGUEUR_MINIMALE));
+    }
+}
+
 void MainWindow::on_pbFlood_clicked() {
-    floodTimer.start();
+    lbStatut->setText(tr("Ecoulement..."));
     e->reinitialiser();
     e->demarrer();
+    floodTimer.start();
 }
 
 void MainWindow::on_pbGen_clicked() {
     floodTimer.stop();
     g->genererReseauTest();
+    e->reinitialiser();
+    lbStatut->clear();
     game->repaint();
 }
 
 void MainWindow::avancerFlood() {
     auto etat = e->avancer(floodTimer.interval() / 1000.0f);
 
-    // TEMPORAIRE : on laisse couler malgre une fuite, pour pouvoir observer le
-    // remplissage complet du reseau de test. A remettre en "etat != eEnCours"
-    // quand le game over sera branche sur eFuite.
-    if(etat == eTermine) {
-        floodTimer.stop();
+    // Une fuite ne fait pas perdre a elle seule : elle arrete l'ecoulement,
+    // et c'est la longueur atteinte qui decide de l'issue de la manche.
+    if(etat != eEnCours) {
+        terminerManche();
     }
 
     game->repaint();

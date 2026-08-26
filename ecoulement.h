@@ -16,6 +16,7 @@ public:
     EEtat avancer(float dt);
     void setDureeRemplissage(float secondes);
     bool enCours() const;
+    int nbCasesTraversees() const;
     bool estRempli(int col, int row) const;
     float progression(int col, int row) const;
     ESens entree(int col, int row) const;
@@ -29,6 +30,7 @@ private:
     float* progressions = nullptr;
     unsigned char* entrees = nullptr;
     QVector<int> front;
+    int casesTraversees = 0;
     // Secondes pour remplir une case. Baisser cette valeur accelere
     // l'ecoulement, sans rien changer d'autre au reste du modele.
     float dureeRemplissage = 0.3f;

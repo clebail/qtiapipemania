@@ -27,7 +27,8 @@ private:
     int spriteWidth() const;
     int spriteHeight() const;
 signals:
-    void pieceDeposee();
+    // remplacement : la case portait deja une piece, ce qui coute des points.
+    void pieceDeposee(bool remplacement);
 };
 
 #endif // WGAME_H

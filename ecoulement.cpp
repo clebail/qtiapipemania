@@ -31,6 +31,7 @@ void Ecoulement::reinitialiser() {
     memset(entrees, 0, size*sizeof(*entrees));
 
     front.clear();
+    casesTraversees = 0;
 }
 
 void Ecoulement::demarrer() {
@@ -38,6 +39,11 @@ void Ecoulement::demarrer() {
     entrees[plateau->getIdxDepart()] = (unsigned char)plateau->getSens(plateau->getIdxDepart());
 
     front << plateau->getIdxDepart();
+    // Le reservoir est la source, pas une case parcourue : il ne compte pas.
+}
+
+int Ecoulement::nbCasesTraversees() const {
+    return casesTraversees;
 }
 
 void Ecoulement::setDureeRemplissage(float secondes) {
@@ -103,6 +109,7 @@ EEtat Ecoulement::avancer(float dt) {
             remplis[nextIdx] = true;
             entrees[nextIdx] = (unsigned char)sensEntre;
             progressions[nextIdx] = 0.0f;
+            casesTraversees++;
 
             frontSuivant << nextIdx;
         }
