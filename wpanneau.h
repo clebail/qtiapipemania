@@ -24,12 +24,16 @@ private:
     Partie *partie = nullptr;
     QVariantAnimation *animation;
     QVector<Piece> anciennesPieces;
+    int hauteurScore = 0;
+    int tailleChiffres = 12;
     qreal progression = 1.0;
 
     int spriteWidth() const;
     int spriteHeight() const;
     void memoriserPieces();
+    int dessinerNiveau(QPainter& painter, int y);
     void dessinerScore(QPainter& painter, int y);
+    void dessinerEtat(QPainter& painter, int y, int tailleScore);
 signals:
 };
 

@@ -27,7 +27,10 @@ public:
 
     EEtatPartie etat() const;
     int score() const;
+    int niveau() const;
     int casesTraversees() const;
+    // Points de bonus accordes a la derniere manche reussie.
+    int bonusManche() const;
     int longueurMinimale() const;
     // 1 = delai entier restant avant le depart du flux, 0 = il est parti.
     float fractionAvantDepart() const;
@@ -41,7 +44,9 @@ private:
     Ecoulement *ecoul = nullptr;
     PieceFile *fil = nullptr;
     EEtatPartie etatCourant = epAttente;
+    int niveauCourant = 1;
     int pointsCourants = 0;
+    int bonusCourant = 0;
     float tempsAvantDepart = 0.0f;
 
     void lancerEcoulement();

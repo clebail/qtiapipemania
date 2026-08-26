@@ -19,7 +19,6 @@ private:
 
     void rafraichir();
 private slots:
-    void on_pbGen_clicked();
     // Nom volontairement hors du motif on_<objet>_<signal> : l'horloge est
     // connectee explicitement, pas via connectSlotsByName.
     void battement();

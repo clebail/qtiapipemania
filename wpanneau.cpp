@@ -57,6 +57,100 @@ int WPanneau::spriteHeight() const {
     return TAILLE_CASE;
 }
 
+// Plus grande taille de police dont `texte` tient encore dans `largeur`.
+static int tailleQuiTient(QFont& police, const QString& texte, int largeur, int maxi) {
+    int retenue = 8;
+
+    for(int essai = 9; essai <= maxi; essai++) {
+        police.setPixelSize(essai);
+        if(QFontMetrics(police).horizontalAdvance(texte) > largeur) {
+            break;
+        }
+        retenue = essai;
+    }
+
+    police.setPixelSize(retenue);
+    return retenue;
+}
+
+// Numero de niveau, au-dessus du score. Renvoie la hauteur occupee.
+int WPanneau::dessinerNiveau(QPainter& painter, int y) {
+    static const QColor cNiveau(0x9a, 0xa4, 0xc8);
+
+    QString texte = tr("NIVEAU %1").arg(partie->niveau(), 2, 10, QChar('0'));
+
+    QFont police("monospace");
+    police.setStyleHint(QFont::TypeWriter);
+    tailleQuiTient(police, texte, width() - 12, 22);
+
+    QFontMetrics mesure(police);
+    painter.setFont(police);
+    painter.setPen(cNiveau);
+    painter.drawText(QPointF((width() - mesure.horizontalAdvance(texte)) / 2.0,
+                             y + mesure.ascent()), texte);
+
+    return mesure.height();
+}
+
+// Etat de la manche, sous le score : un mot et son detail chiffre.
+void WPanneau::dessinerEtat(QPainter& painter, int y, int tailleScore) {
+    static const QColor cDetail(0x6e, 0x7a, 0xa8);
+
+    QString titre;
+    QString detail;
+    QColor couleur;
+
+    switch(partie->etat()) {
+    case epAttente:
+        titre = tr("PRET");
+        couleur = QColor(0x6e, 0xd8, 0xff);
+        break;
+    case epEcoulement:
+        titre = tr("FLUX");
+        detail = QString("%1/%2").arg(partie->casesTraversees()).arg(partie->longueurMinimale());
+        couleur = QColor(0x6e, 0xd8, 0xff);
+        break;
+    case epReussie:
+        titre = tr("REUSSI");
+        detail = QString("+%1").arg(partie->bonusManche());
+        couleur = QColor(0x2f, 0xbf, 0x4f);
+        break;
+    case epPerdue:
+        titre = tr("PERDU");
+        detail = QString("%1/%2").arg(partie->casesTraversees()).arg(partie->longueurMinimale());
+        couleur = QColor(0xd8, 0x50, 0x40);
+        break;
+    }
+
+    int disponible = width() - 12;
+
+    QFont policeTitre("monospace");
+    policeTitre.setStyleHint(QFont::TypeWriter);
+    policeTitre.setBold(true);
+    int tailleTitre = qMin(tailleQuiTient(policeTitre, titre, disponible, 72), tailleScore * 2 / 3);
+    policeTitre.setPixelSize(tailleTitre);
+
+    QFontMetrics mesureTitre(policeTitre);
+    painter.setFont(policeTitre);
+    painter.setPen(couleur);
+    painter.drawText(QPointF((width() - mesureTitre.horizontalAdvance(titre)) / 2.0,
+                             y + mesureTitre.ascent()), titre);
+
+    if(detail.isEmpty()) {
+        return;
+    }
+
+    QFont policeDetail("monospace");
+    policeDetail.setStyleHint(QFont::TypeWriter);
+    policeDetail.setPixelSize(qMax(9, tailleTitre * 3 / 4));
+
+    QFontMetrics mesureDetail(policeDetail);
+    painter.setFont(policeDetail);
+    painter.setPen(cDetail);
+    painter.drawText(QPointF((width() - mesureDetail.horizontalAdvance(detail)) / 2.0,
+                             y + mesureTitre.height() + 4 + mesureDetail.ascent()), detail);
+}
+
 // Afficheur facon borne d'arcade : toujours 6 chiffres, zeros de tete compris.
 void WPanneau::dessinerScore(QPainter& painter, int y) {
     static const QColor cLibelle(0x6e, 0x7a, 0xa8);
@@ -72,15 +166,7 @@ void WPanneau::dessinerScore(QPainter& painter, int y) {
     // On prend la plus grande taille dont les six chiffres tiennent encore :
     // l'affichage suit donc la largeur du panneau, quelle qu'elle soit.
     int disponible = width() - 12;
-    int pixels = 8;
-    for(int essai = 9; essai <= 72; essai++) {
-        policeChiffres.setPixelSize(essai);
-        if(QFontMetrics(policeChiffres).horizontalAdvance(chiffres) > disponible) {
-            break;
-        }
-        pixels = essai;
-    }
-    policeChiffres.setPixelSize(pixels);
+    int pixels = tailleQuiTient(policeChiffres, chiffres, disponible, 72);
 
     QFontMetrics mesureChiffres(policeChiffres);
     int largeur = mesureChiffres.horizontalAdvance(chiffres);
@@ -109,6 +195,9 @@ void WPanneau::dessinerScore(QPainter& painter, int y) {
     painter.setFont(policeChiffres);
     painter.setPen(cChiffres);
     painter.drawText(QPointF(x, y + mesureLibelle.height() + 6 + mesureChiffres.ascent()), chiffres);
+
+    hauteurScore = mesureLibelle.height() + 6 + mesureChiffres.height();
+    tailleChiffres = pixels;
 }
 
 void WPanneau::paintEvent(QPaintEvent *) {
@@ -158,5 +247,9 @@ void WPanneau::paintEvent(QPaintEvent *) {
     // Sous la file, en laissant la place a la piece qui descend pendant
     // l'animation : elle atteint le bas de la case (taille), donc on demarre
     // une case plus bas.
-    dessinerScore(painter, (taille + 1) * spriteH + 10);
+    // Bloc d'information sous la file : niveau, score, etat de la manche.
+    int y = (taille + 1) * spriteH + 10;
+    y += dessinerNiveau(painter, y) + 12;
+    dessinerScore(painter, y);
+    dessinerEtat(painter, y + hauteurScore + 18, tailleChiffres);
 }

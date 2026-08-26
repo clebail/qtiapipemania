@@ -17,6 +17,10 @@ public:
     void setDureeRemplissage(float secondes);
     bool enCours() const;
     int nbCasesTraversees() const;
+    // Combien de cases le flux traverserait encore si on le laissait continuer
+    // sur le plateau actuel. Ne modifie rien : sert a mesurer l'avance prise
+    // par le joueur au moment ou la manche s'arrete.
+    int casesEnAval() const;
     bool estRempli(int col, int row) const;
     float progression(int col, int row) const;
     ESens entree(int col, int row) const;

@@ -35,21 +35,6 @@ void MainWindow::rafraichir() {
     depart->setFraction(p->fractionAvantDepart());
     panneau->update();
 
-    switch(p->etat()) {
-    case epAttente:
-        lbStatut->setText(tr("Posez vos tuyaux..."));
-        break;
-    case epEcoulement:
-        lbStatut->setText(tr("Ecoulement..."));
-        break;
-    case epReussie:
-        lbStatut->setText(tr("Manche reussie : %1 cases").arg(p->casesTraversees()));
-        break;
-    case epPerdue:
-        lbStatut->setText(tr("Perdu : %1 cases sur %2 requises")
-                          .arg(p->casesTraversees()).arg(p->longueurMinimale()));
-        break;
-    }
 }
 
 void MainWindow::battement() {
@@ -66,11 +51,4 @@ void MainWindow::battement() {
     if(p->etat() != avant || p->etat() == epAttente) {
         rafraichir();
     }
-}
-
-void MainWindow::on_pbGen_clicked() {
-    p->plateau()->genererReseauTest();
-    p->nouvelleManche();
-    game->repaint();
-    rafraichir();
 }

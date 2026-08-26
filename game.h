@@ -18,8 +18,6 @@ public:
     ESens getSens(int idx) const;
     void setSens(int col, int row, const ESens& sens);
     int getIdxDepart() const;
-    // Temporaire, pour tester flood() plus vite sans poser 200+ pieces a la main.
-    void genererReseauTest();
 private:
     int largeur;
     int hauteur;

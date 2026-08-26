@@ -131,6 +131,53 @@ bool Ecoulement::enCours() const {
     return !front.isEmpty();
 }
 
+int Ecoulement::casesEnAval() const {
+    int largeur = plateau->getLargeur();
+    int hauteur = plateau->getHauteur();
+    int size = plateau->getSize();
+
+    // Meme parcours que avancer(), mais a blanc : on part du front courant avec
+    // une copie du visite, donc l'etat de l'ecoulement n'est pas touche.
+    QVector<unsigned char> vus(size);
+    memcpy(vus.data(), remplis, size*sizeof(*remplis));
+
+    QVector<int> aVoir = front;
+    int compte = 0;
+
+    while(!aVoir.isEmpty()) {
+        int idx = aVoir.takeLast();
+        int x = idx % largeur;
+        int y = idx / largeur;
+
+        foreach(ESens ouverture, ouvertures(plateau->getTypePiece(x, y), plateau->getSens(x, y))) {
+            ESens sensEntre = sensReciproques[(unsigned char)ouverture];
+            int nextX = x + deltas[(unsigned char)ouverture].dx;
+            int nextY = y + deltas[(unsigned char)ouverture].dy;
+
+            if(nextX < 0 || nextX >= largeur || nextY < 0 || nextY >= hauteur) {
+                continue;
+            }
+
+            int nextIdx = nextY * largeur + nextX;
+
+            if(vus[nextIdx]) {
+                continue;
+            }
+
+            if(!ouvertures(plateau->getTypePiece(nextX, nextY),
+                           plateau->getSens(nextX, nextY)).contains(sensEntre)) {
+                continue;
+            }
+
+            vus[nextIdx] = true;
+            compte++;
+            aVoir << nextIdx;
+        }
+    }
+
+    return compte;
+}
+
 bool Ecoulement::estRempli(int col, int row) const {
     if(col >= 0 && col < plateau->getLargeur() && row >= 0 && row < plateau->getHauteur()) {
         int idx = row * plateau->getLargeur() + col;
