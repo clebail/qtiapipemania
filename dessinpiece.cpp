@@ -17,11 +17,11 @@ static const QColor cBombe       (0x2a, 0x2a, 0x32);
 static const QColor cMeche       (0xd8, 0x50, 0x30);
 
 // Proportions du tuyau, en fraction de la taille d'une case.
-static const qreal fContour = 0.46;
-static const qreal fCorps   = 0.40;
-static const qreal fReflet  = 0.30;
-static const qreal fCanal   = 0.20;
-static const qreal fCuve    = 0.27;
+static const qreal fContour = 0.53;
+static const qreal fCorps   = 0.46;
+static const qreal fReflet  = 0.34;
+static const qreal fCanal   = 0.23;
+static const qreal fCuve    = 0.31;
 
 static bool estCoude(ETypePiece type) {
     return type >= tpCoudeHautGauche && type <= tpCoudeBasDroite;
