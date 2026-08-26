@@ -4,7 +4,7 @@
 #define FILE_SIZE       5
 
 #include <QWidget>
-#include <QImage>
+#include <QVariantAnimation>
 #include "piecefile.h"
 
 class WPieceFile : public QWidget
@@ -14,15 +14,21 @@ public:
     explicit WPieceFile(QWidget *parent = nullptr);
     void setPieceFile(PieceFile *pieceFile);
 
+public slots:
+    void animerDepilage();
+
 protected:
     virtual void paintEvent(QPaintEvent *event);
 
 private:
     PieceFile *pieceFile = nullptr;
-    QImage tileset;
+    QVariantAnimation *animation;
+    QVector<Piece> anciennesPieces;
+    qreal progression = 1.0;
 
     int spriteWidth() const;
     int spriteHeight() const;
+    void memoriserPieces();
 signals:
 };
 

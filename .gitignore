@@ -27,8 +27,11 @@ Makefile*
 *.prl
 *.app
 moc_*.cpp
+moc_*.h
 ui_*.h
 qrc_*.cpp
+# .qrc genere par embed_translations (contient un chemin absolu)
+qmake_*.qrc
 Thumbs.db
 *.res
 *.rc
@@ -71,5 +74,6 @@ CMakeLists.txt.user*
 # --------
 *.dll
 *.exe
+qtiapipemania
 
 build
