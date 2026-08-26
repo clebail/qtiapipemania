@@ -13,10 +13,15 @@
 // ne suit que doucement, avec un plancher, car elle agit sur l'ecart entre le
 // debit du flux et celui de la pose : quelques centiemes suffisent a rendre le
 // jeu injouable.
-#define LONGUEUR_BASE           20
-#define LONGUEUR_PAS            5
-#define DELAI_BASE              15.0f
-#define DELAI_MIN               6.0f
+//
+// Valeurs calees sur du jeu reel. Le facteur cache est le taux de pieces
+// inutilisables : pour une direction donnee, seuls 4 types sur 7 offrent
+// l'ouverture voulue. Il faut donc tirer une trentaine de pieces pour en poser
+// vingt d'utiles, d'ou un objectif de depart modeste et un delai genereux.
+#define LONGUEUR_BASE           12
+#define LONGUEUR_PAS            3
+#define DELAI_BASE              22.0f
+#define DELAI_MIN               10.0f
 #define DUREE_BASE              0.30f
 #define DUREE_FACTEUR           0.95f
 #define DUREE_MIN               0.12f
