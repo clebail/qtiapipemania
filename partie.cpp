@@ -18,8 +18,14 @@
 // inutilisables : pour une direction donnee, seuls 4 types sur 7 offrent
 // l'ouverture voulue. Il faut donc tirer une trentaine de pieces pour en poser
 // vingt d'utiles, d'ou un objectif de depart modeste et un delai genereux.
-#define LONGUEUR_BASE           12
-#define LONGUEUR_PAS            3
+//
+// L'objectif plafonne a vingt cases : au-dela, la longueur demandee ne mesure
+// plus l'adresse du joueur mais sa chance au tirage. Passe ce plafond, la
+// difficulte continue de monter par les cases bloquees, le delai de depart et
+// la vitesse du flux.
+#define LONGUEUR_BASE           10
+#define LONGUEUR_PAS            2
+#define LONGUEUR_MAX            20
 #define DELAI_BASE              22.0f
 #define DELAI_MIN               10.0f
 #define DUREE_BASE              0.30f
@@ -207,7 +213,7 @@ int Partie::casesTraversees() const {
 }
 
 int Partie::longueurMinimale() const {
-    return LONGUEUR_BASE + LONGUEUR_PAS * (niveauCourant - 1);
+    return qMin(LONGUEUR_MAX, LONGUEUR_BASE + LONGUEUR_PAS * (niveauCourant - 1));
 }
 
 float Partie::fractionAvantDepart() const {

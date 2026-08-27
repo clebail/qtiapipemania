@@ -117,12 +117,16 @@ void WGame::paintEvent(QPaintEvent *) {
 
     for(int y=0;y<plateau->getHauteur();y++) {
         for(int x=0;x<plateau->getLargeur();x++) {
-            float p = ecoul->progression(x, y);
+            // Les deux conduites de la case : une croix traversee deux fois en
+            // porte deux, toute autre piece n'en remplit qu'une.
+            for(int axe=0;axe<NB_AXES;axe++) {
+                float p = ecoul->progression(x, y, axe);
 
-            if(p > 0.0f) {
-                QRectF dest(x*spriteW + margeX, y*spriteH + margeY, spriteW, spriteH);
-                dessinerLiquide(painter, dest, plateau->getTypePiece(x, y), plateau->getSens(x, y),
-                                ecoul->entree(x, y), p);
+                if(p > 0.0f) {
+                    QRectF dest(x*spriteW + margeX, y*spriteH + margeY, spriteW, spriteH);
+                    dessinerLiquide(painter, dest, plateau->getTypePiece(x, y), plateau->getSens(x, y),
+                                    ecoul->entree(x, y, axe), p);
+                }
             }
         }
     }

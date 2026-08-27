@@ -6,7 +6,7 @@ static ESens sensReciproques[] = {sBas, sHaut, sDroite, sGauche};
 static SDelta deltas[] = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}};
 
 Ecoulement::Ecoulement(const Game *plateau) {
-    int size = plateau->getSize();
+    int size = plateau->getSize() * NB_AXES;
 
     remplis = new unsigned char[size];
     progressions = new float[size];
@@ -24,7 +24,7 @@ Ecoulement::~Ecoulement() {
 }
 
 void Ecoulement::reinitialiser() {
-    int size = plateau->getSize();
+    int size = plateau->getSize() * NB_AXES;
 
     memset(remplis, 0, size*sizeof(*remplis));
     memset(progressions, 0, size*sizeof(*progressions));
@@ -35,10 +35,13 @@ void Ecoulement::reinitialiser() {
 }
 
 void Ecoulement::demarrer() {
-    remplis[plateau->getIdxDepart()] = true;
-    entrees[plateau->getIdxDepart()] = (unsigned char)plateau->getSens(plateau->getIdxDepart());
+    // Le reservoir n'est pas une croix : il tient sur l'axe 0 comme le reste.
+    int conduite = plateau->getIdxDepart() * NB_AXES + AXE_HORIZONTAL;
 
-    front << plateau->getIdxDepart();
+    remplis[conduite] = true;
+    entrees[conduite] = (unsigned char)plateau->getSens(plateau->getIdxDepart());
+
+    front << conduite;
     // Le reservoir est la source, pas une case parcourue : il ne compte pas.
 }
 
@@ -60,23 +63,24 @@ EEtat Ecoulement::avancer(float dt) {
     QVector<int> frontSuivant;
     bool fuite = false;
 
-    foreach(int idx, front) {
-        progressions[idx] += dt / dureeRemplissage;
+    foreach(int conduite, front) {
+        progressions[conduite] += dt / dureeRemplissage;
 
-        if(progressions[idx] < 1.0f) {
-            // Case encore en cours de remplissage : elle reste dans le front.
-            frontSuivant << idx;
+        if(progressions[conduite] < 1.0f) {
+            // Conduite encore en cours de remplissage : elle reste dans le front.
+            frontSuivant << conduite;
             continue;
         }
 
-        progressions[idx] = 1.0f;
+        progressions[conduite] = 1.0f;
 
+        int idx = conduite / NB_AXES;
         int x = idx % largeur;
         int y = idx / largeur;
 
         foreach(ESens ouverture, sorties(plateau->getTypePiece(x, y),
                                          plateau->getSens(x, y),
-                                         (ESens)entrees[idx])) {
+                                         (ESens)entrees[conduite])) {
             ESens sensEntre = sensReciproques[(unsigned char)ouverture];
             int nextX = x + deltas[(unsigned char)ouverture].dx;
             int nextY = y + deltas[(unsigned char)ouverture].dy;
@@ -98,18 +102,25 @@ EEtat Ecoulement::avancer(float dt) {
                 continue;
             }
 
-            if(remplis[nextIdx]) {
-                // Deja revendiquee : case d'ou l'on vient, ou branches qui se
-                // rejoignent apres une boucle.
+            // C'est la conduite qui est revendiquee, pas la case : le second
+            // passage dans une croix emprunte l'autre axe et trouve la place
+            // libre, alors que toute autre piece n'en a qu'une.
+            int nextConduite = nextIdx * NB_AXES + axe(nextTypePiece, sensEntre);
+
+            if(remplis[nextConduite]) {
+                // Deja revendiquee : conduite d'ou l'on vient, ou branches qui
+                // se rejoignent apres une boucle.
                 continue;
             }
 
-            remplis[nextIdx] = true;
-            entrees[nextIdx] = (unsigned char)sensEntre;
-            progressions[nextIdx] = 0.0f;
+            remplis[nextConduite] = true;
+            entrees[nextConduite] = (unsigned char)sensEntre;
+            progressions[nextConduite] = 0.0f;
+            // Les deux conduites d'une croix comptent chacune pour une case :
+            // la croiser deux fois rapporte donc deux fois les points.
             casesTraversees++;
 
-            frontSuivant << nextIdx;
+            frontSuivant << nextConduite;
         }
     }
 
@@ -132,24 +143,31 @@ bool Ecoulement::enCours() const {
 int Ecoulement::casesEnAval() const {
     int largeur = plateau->getLargeur();
     int hauteur = plateau->getHauteur();
-    int size = plateau->getSize();
+    int size = plateau->getSize() * NB_AXES;
 
     // Meme parcours que avancer(), mais a blanc : on part du front courant avec
     // une copie du visite, donc l'etat de l'ecoulement n'est pas touche.
     QVector<unsigned char> vus(size);
     memcpy(vus.data(), remplis, size*sizeof(*remplis));
 
+    // Les cases en aval ne sont pas encore atteintes : leur cote d'entree n'est
+    // connu qu'au moment ou le parcours y arrive, et il faut le retenir puisque
+    // les sorties d'un tuyau en dependent.
+    QVector<unsigned char> entreesVues(size);
+    memcpy(entreesVues.data(), entrees, size*sizeof(*entrees));
+
     QVector<int> aVoir = front;
     int compte = 0;
 
     while(!aVoir.isEmpty()) {
-        int idx = aVoir.takeLast();
+        int conduite = aVoir.takeLast();
+        int idx = conduite / NB_AXES;
         int x = idx % largeur;
         int y = idx / largeur;
 
         foreach(ESens ouverture, sorties(plateau->getTypePiece(x, y),
                                          plateau->getSens(x, y),
-                                         (ESens)entrees[idx])) {
+                                         (ESens)entreesVues[conduite])) {
             ESens sensEntre = sensReciproques[(unsigned char)ouverture];
             int nextX = x + deltas[(unsigned char)ouverture].dx;
             int nextY = y + deltas[(unsigned char)ouverture].dy;
@@ -159,50 +177,67 @@ int Ecoulement::casesEnAval() const {
             }
 
             int nextIdx = nextY * largeur + nextX;
+            ETypePiece nextTypePiece = plateau->getTypePiece(nextX, nextY);
+            int nextConduite = nextIdx * NB_AXES + axe(nextTypePiece, sensEntre);
 
-            if(vus[nextIdx]) {
+            if(vus[nextConduite]) {
                 continue;
             }
 
-            if(!ouvertures(plateau->getTypePiece(nextX, nextY),
+            if(!ouvertures(nextTypePiece,
                            plateau->getSens(nextX, nextY)).contains(sensEntre)) {
                 continue;
             }
 
-            vus[nextIdx] = true;
+            // A blanc, l'entree de la conduite visee n'est pas encore posee :
+            // c'est celle par laquelle on y arrive.
+            entreesVues[nextConduite] = (unsigned char)sensEntre;
+            vus[nextConduite] = true;
             compte++;
-            aVoir << nextIdx;
+            aVoir << nextConduite;
         }
     }
 
     return compte;
 }
 
+// Seule la croix distingue ses deux axes ; ailleurs le flux ne passe qu'une
+// fois, et tout tient donc sur l'axe 0.
+int Ecoulement::axe(const ETypePiece& typePiece, const ESens& entree) {
+    if(typePiece == tpCroix && (entree == sHaut || entree == sBas)) {
+        return AXE_VERTICAL;
+    }
+
+    return AXE_HORIZONTAL;
+}
+
 bool Ecoulement::estRempli(int col, int row) const {
     if(col >= 0 && col < plateau->getLargeur() && row >= 0 && row < plateau->getHauteur()) {
         int idx = row * plateau->getLargeur() + col;
 
-        return remplis[idx];
+        return remplis[idx * NB_AXES + AXE_HORIZONTAL] || remplis[idx * NB_AXES + AXE_VERTICAL];
     }
 
     return false;
 }
 
-float Ecoulement::progression(int col, int row) const {
-    if(col >= 0 && col < plateau->getLargeur() && row >= 0 && row < plateau->getHauteur()) {
+float Ecoulement::progression(int col, int row, int axe) const {
+    if(col >= 0 && col < plateau->getLargeur() && row >= 0 && row < plateau->getHauteur()
+       && axe >= 0 && axe < NB_AXES) {
         int idx = row * plateau->getLargeur() + col;
 
-        return progressions[idx];
+        return progressions[idx * NB_AXES + axe];
     }
 
     return 0.0;
 }
 
-ESens Ecoulement::entree(int col, int row) const {
-    if(col >= 0 && col < plateau->getLargeur() && row >= 0 && row < plateau->getHauteur()) {
+ESens Ecoulement::entree(int col, int row, int axe) const {
+    if(col >= 0 && col < plateau->getLargeur() && row >= 0 && row < plateau->getHauteur()
+       && axe >= 0 && axe < NB_AXES) {
         int idx = row * plateau->getLargeur() + col;
 
-        return (ESens)entrees[idx];
+        return (ESens)entrees[idx * NB_AXES + axe];
     }
 
     return sHaut;
