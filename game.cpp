@@ -2,7 +2,12 @@
 #include <string.h>
 #include "game.h"
 
-Game::Game(int largeur, int hauteur) {
+// Sans graine imposee, on en tire une du systeme, comme pour la file.
+Game::Game(int largeur, int hauteur)
+    : Game(largeur, hauteur, QRandomGenerator::securelySeeded().generate()) {
+}
+
+Game::Game(int largeur, int hauteur, quint32 seed) : alea(seed), graine(seed) {
     this->largeur = largeur;
     this->hauteur = hauteur;
     size = largeur * hauteur;
@@ -12,14 +17,38 @@ Game::Game(int largeur, int hauteur) {
     reinitialiser();
 }
 
+Game::Game(const Game& other) : alea(other.alea), graine(other.graine), largeur(other.largeur), hauteur(other.hauteur),
+    size(other.size), xDepart(other.xDepart), yDepart(other.yDepart) {
+
+    map = new unsigned char[size];
+    memcpy(map, other.map, size * sizeof(*map));
+}
+
+Game& Game::operator=(const Game& other) {
+    if (this == &other) return *this;
+    delete[] map;
+    alea = other.alea;
+    graine = other.graine;
+    largeur = other.largeur;
+    hauteur = other.hauteur;
+    size = other.size;
+    xDepart = other.xDepart;
+    yDepart = other.yDepart;
+
+    map = new unsigned char[size];
+    memcpy(map, other.map, size * sizeof(*map));
+
+    return *this;
+}
+
 // Plateau vide, avec un nouveau reservoir place au hasard et le nombre demande
 // de cases infranchissables : un niveau propre.
 void Game::reinitialiser(int nbBloquees) {
     memset(map, (unsigned char)tpNone, size*sizeof(*map));
 
-    xDepart = QRandomGenerator::global()->bounded(1, largeur-1);
-    yDepart = QRandomGenerator::global()->bounded(1, hauteur-1);
-    ESens sens = (ESens)QRandomGenerator::global()->bounded((int)sHaut, (int)sDroite + 1);
+    xDepart = alea.bounded(1, largeur-1);
+    yDepart = alea.bounded(1, hauteur-1);
+    ESens sens = (ESens)alea.bounded((int)sHaut, (int)sDroite + 1);
 
     setTypePiece(xDepart, yDepart, tpReservoir);
     setSens(xDepart, yDepart, sens);
@@ -40,8 +69,8 @@ void Game::reinitialiser(int nbBloquees) {
         // Quelques essais suffisent : les cases libres sont largement
         // majoritaires, et rater un obstacle est sans consequence.
         for(int essai=0; essai<50; essai++) {
-            int x = QRandomGenerator::global()->bounded(0, largeur);
-            int y = QRandomGenerator::global()->bounded(0, hauteur);
+            int x = alea.bounded(0, largeur);
+            int y = alea.bounded(0, hauteur);
 
             if((x == sortieX && y == sortieY) || getTypePiece(x, y) != tpNone) {
                 continue;
@@ -51,6 +80,17 @@ void Game::reinitialiser(int nbBloquees) {
             break;
         }
     }
+}
+
+void Game::reinitialiser(int nbBloquees, quint32 seed) {
+    alea.seed(seed);
+    graine = seed;
+
+    reinitialiser(nbBloquees);
+}
+
+quint32 Game::getGraine() const {
+    return graine;
 }
 
 Game::~Game() {
@@ -108,3 +148,4 @@ void Game::setSens(int col, int row, const ESens& sens) {
 int Game::getIdxDepart() const {
     return yDepart * largeur + xDepart;
 }
+

@@ -4,7 +4,7 @@
 
 // Plus large qu'une case : les pieces restent centrees dessus, et la place
 // gagnee sert a afficher le score en gros.
-#define LARGEUR_PANNEAU     (TAILLE_CASE * 2)
+#define LARGEUR_PANNEAU     (tailleCase() * 2)
 
 WPanneau::WPanneau(QWidget *parent)
     : QWidget{parent}
@@ -43,18 +43,34 @@ void WPanneau::memoriserPieces() {
 }
 
 void WPanneau::animerDepilage() {
-    // anciennesPieces contient encore l'état de la file avant le depiler().
+    // anciennesPieces contient l'état de la file avant le depiler(), et c'est
+    // lui qui dessine les rangs 1 a 4 pendant l'animation.
+    //
+    // Sauf si l'animation precedente n'est pas finie : stop() n'emet pas
+    // finished(), donc son memoriserPieces() n'aura jamais lieu et le tableau
+    // resterait en retard d'un cran -- la file semble alors figee, seule la
+    // piece du haut bougeant. On l'avance donc a la main : la file d'avant CE
+    // depilage, c'est l'ancienne privee de sa tete, plus la piece que le
+    // depilage precedent avait ajoutee en queue.
+    if(animation->state() == QAbstractAnimation::Running
+       && partie != nullptr && anciennesPieces.size() >= 2) {
+        PieceFile *file = partie->file();
+
+        anciennesPieces.removeFirst();
+        anciennesPieces.append(file->getPiece(file->getTaille() - 2));
+    }
+
     animation->stop();
     progression = 0.0;
     animation->start();
 }
 
 int WPanneau::spriteWidth() const {
-    return TAILLE_CASE;
+    return tailleCase();
 }
 
 int WPanneau::spriteHeight() const {
-    return TAILLE_CASE;
+    return tailleCase();
 }
 
 // Plus grande taille de police dont `texte` tient encore dans `largeur`.
@@ -92,33 +108,60 @@ int WPanneau::dessinerNiveau(QPainter& painter, int y) {
     return mesure.height();
 }
 
-// Etat de la manche, sous le score : un mot et son detail chiffre.
+// Un compteur du bloc d'etat : libelle terne, valeur claire, sur une ligne
+// dont la police est reduite jusqu'a tenir dans le panneau. Renvoie la hauteur
+// occupee, pour que l'appelant empile sans connaitre la police choisie.
+int WPanneau::dessinerCompteur(QPainter& painter, int y, int maxi,
+                               const QString& libelle, const QString& valeur,
+                               const QColor& couleur) {
+    static const QColor cLibelle(0x6e, 0x7a, 0xa8);
+
+    QFont police("monospace");
+    police.setStyleHint(QFont::TypeWriter);
+
+    // La ligne entiere doit tenir : on la mesure d'un bloc, puis on la dessine
+    // en deux morceaux pour pouvoir les colorer separement.
+    QString ligne = libelle + " " + valeur;
+    tailleQuiTient(police, ligne, width() - 12, maxi);
+
+    QFontMetrics mesure(police);
+    painter.setFont(police);
+
+    qreal x = (width() - mesure.horizontalAdvance(ligne)) / 2.0;
+    qreal base = y + mesure.ascent();
+
+    painter.setPen(cLibelle);
+    painter.drawText(QPointF(x, base), libelle);
+
+    painter.setPen(couleur);
+    painter.drawText(QPointF(x + mesure.horizontalAdvance(libelle + " "), base), valeur);
+
+    return mesure.height();
+}
+
+// Etat de la manche, sous le score : un mot, puis deux compteurs.
 void WPanneau::dessinerEtat(QPainter& painter, int y, int tailleScore) {
-    static const QColor cDetail(0x6e, 0x7a, 0xa8);
+    static const QColor cVif(0x6e, 0xd8, 0xff);
+    static const QColor cReussi(0x2f, 0xbf, 0x4f);
+    static const QColor cPerdu(0xd8, 0x50, 0x40);
 
     QString titre;
-    QString detail;
-    QColor couleur;
+    QColor couleur = cVif;
 
     switch(partie->etat()) {
     case epAttente:
         titre = tr("PRET");
-        couleur = QColor(0x6e, 0xd8, 0xff);
         break;
     case epEcoulement:
         titre = tr("FLUX");
-        detail = QString("%1/%2").arg(partie->casesTraversees()).arg(partie->longueurMinimale());
-        couleur = QColor(0x6e, 0xd8, 0xff);
         break;
     case epReussie:
         titre = tr("REUSSI");
-        detail = QString("+%1").arg(partie->bonusManche());
-        couleur = QColor(0x2f, 0xbf, 0x4f);
+        couleur = cReussi;
         break;
     case epPerdue:
         titre = tr("PERDU");
-        detail = QString("%1/%2").arg(partie->casesTraversees()).arg(partie->longueurMinimale());
-        couleur = QColor(0xd8, 0x50, 0x40);
+        couleur = cPerdu;
         break;
     }
 
@@ -136,19 +179,29 @@ void WPanneau::dessinerEtat(QPainter& painter, int y, int tailleScore) {
     painter.drawText(QPointF((width() - mesureTitre.horizontalAdvance(titre)) / 2.0,
                              y + mesureTitre.ascent()), titre);
 
-    if(detail.isEmpty()) {
-        return;
-    }
+    // Deux compteurs et non un. Le tuyau pose et le flux qui le parcourt ne
+    // repondent pas a la meme question, et c'est leur ecart -- l'avance -- qui
+    // fait toute la tension du jeu. Un compteur unique changeant de sens avec
+    // l'etat la rendait invisible : il montrait l'objectif avant le depart puis
+    // le flux apres, et on perdait de vue ce qui restait construit devant.
+    //
+    // Le denominateur du second est le numerateur du premier : le flux parcourt
+    // ce qui est pose, qui doit atteindre ce qui est requis.
+    int pose = partie->longueurTracee();
+    int requis = partie->longueurMinimale();
 
-    QFont policeDetail("monospace");
-    policeDetail.setStyleHint(QFont::TypeWriter);
-    policeDetail.setPixelSize(qMax(9, tailleTitre * 3 / 4));
+    int yc = y + mesureTitre.height() + 6;
+    int maxi = qMax(9, tailleTitre * 3 / 4);
 
-    QFontMetrics mesureDetail(policeDetail);
-    painter.setFont(policeDetail);
-    painter.setPen(cDetail);
-    painter.drawText(QPointF((width() - mesureDetail.horizontalAdvance(detail)) / 2.0,
-                             y + mesureTitre.height() + 4 + mesureDetail.ascent()), detail);
+    // L'objectif passe au vert des qu'il est atteint : c'est tout ce que la
+    // barre d'espace demande de savoir.
+    yc += dessinerCompteur(painter, yc, maxi, tr("OBJECTIF"),
+                           QString("%1/%2").arg(pose).arg(requis),
+                           pose >= requis ? cReussi : cVif) + 3;
+
+    dessinerCompteur(painter, yc, maxi, tr("PARCOURU"),
+                     QString("%1/%2").arg(partie->casesTraversees()).arg(pose),
+                     couleur);
 }
 
 // Afficheur facon borne d'arcade : toujours 6 chiffres, zeros de tete compris.

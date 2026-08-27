@@ -6,13 +6,12 @@ static const QColor cFond   (0x0b, 0x0b, 0x14);
 static const QColor cCadre  (0x3a, 0x3a, 0xc8);
 static const QColor cCreux  (0x08, 0x08, 0x16);
 
-// Largeur du barregraphe : une demi-case, pour rester dans la trame du jeu.
-static const int LARGEUR = TAILLE_CASE / 2;
 static const qreal MARGE = 4.0;
 static const qreal ARRONDI = 3.0;
 
 WDepart::WDepart(QWidget *parent) : QWidget{parent} {
-    setFixedWidth(LARGEUR);
+    // Une demi-case de large, pour rester dans la trame du jeu.
+    setFixedWidth(tailleCase() / 2);
 }
 
 void WDepart::setFraction(float fraction) {

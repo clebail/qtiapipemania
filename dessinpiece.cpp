@@ -117,6 +117,15 @@ QPainterPath cheminTuyau(const QRectF& tuile, ETypePiece type, ESens sens, ESens
     return chemin;
 }
 
+// Le liquide, a la largeur exacte du canal : il le remplit par construction,
+// puisque c'est le meme chemin.
+static void tracerLiquide(QPainter& painter, const QPainterPath& chemin, qreal taille) {
+    painter.strokePath(chemin, QPen(cLiquide, taille * fCanal,
+                                    Qt::SolidLine, Qt::FlatCap, Qt::RoundJoin));
+    painter.strokePath(chemin, QPen(cLiquideVif, taille * fCanal * 0.35,
+                                    Qt::SolidLine, Qt::FlatCap, Qt::RoundJoin));
+}
+
 static void dessinerCuve(QPainter& painter, const QRectF& tuile) {
     qreal rayon = tuile.width() * fCuve;
     QRectF cuve(tuile.center().x() - rayon, tuile.center().y() - rayon, 2*rayon, 2*rayon);
@@ -181,6 +190,42 @@ static void dessinerBombe(QPainter& painter, const QRectF& tuile) {
     painter.drawEllipse(corps.adjusted(rayon*0.35, rayon*0.3, -rayon*1.1, -rayon*1.15));
 }
 
+// Couches concentriques du plus large au plus etroit : contour, corps, reflet,
+// puis le canal creux dans lequel coulera le liquide.
+static void empilerCouches(QPainter& painter, const QPainterPath& chemin, qreal taille) {
+    const struct { qreal fraction; QColor couleur; } couches[] = {
+        { fContour, cContour },
+        { fCorps,   cCorps   },
+        { fReflet,  cReflet  },
+        { fCanal,   cCanal   },
+    };
+
+    for(const auto& couche : couches) {
+        painter.strokePath(chemin, QPen(couche.couleur, taille * couche.fraction,
+                                        Qt::SolidLine, Qt::FlatCap, Qt::RoundJoin));
+    }
+}
+
+// Eclaircissement du croisement d'une croix. La coupure nette suffisait a dire
+// laquelle des deux conduites passe dessus, mais elle le disait brutalement :
+// le carre central attrape un peu de lumiere, et le passage se lit sans que le
+// tuyau du dessous paraisse tranche.
+static const QColor cCroisement(0xff, 0xff, 0xff, 34);
+
+// Ce qu'il reste du liquide vertical la ou la conduite horizontale le recouvre.
+// Zero le masquerait tout a fait et couperait le flux en deux morceaux sans
+// rapport ; un, et le passage ne se lirait plus. Entre les deux, on devine la
+// continuite a travers le tuyau.
+static const qreal opaciteSousConduite = 0.35;
+
+// Bande occupee par la conduite horizontale d'une croix, contour compris. Le
+// liquide qui traverse verticalement s'y arrete : il passe dessous.
+static QRectF bandeHorizontale(const QRectF& tuile) {
+    qreal demi = tuile.width() * fContour / 2.0;
+
+    return QRectF(tuile.left(), tuile.center().y() - demi, tuile.width(), 2.0 * demi);
+}
+
 static void tracerPiece(QPainter& painter, const QRectF& tuile, ETypePiece type, ESens sens) {
     painter.save();
     painter.fillRect(tuile, cFond);
@@ -205,23 +250,42 @@ static void tracerPiece(QPainter& painter, const QRectF& tuile, ETypePiece type,
         return;
     }
 
-    QVector<ESens> ouv = Ecoulement::ouvertures(type, sens);
-    QPainterPath chemin = cheminTuyau(tuile, type, sens, ouv.first(), 1.0f);
     qreal taille = tuile.width();
 
-    // Couches concentriques du plus large au plus etroit : contour, corps,
-    // reflet, puis le canal creux dans lequel coulera le liquide.
-    const struct { qreal fraction; QColor couleur; } couches[] = {
-        { fContour, cContour },
-        { fCorps,   cCorps   },
-        { fReflet,  cReflet  },
-        { fCanal,   cCanal   },
-    };
+    if(type == tpCroix) {
+        // Deux conduites distinctes, tracees l'une apres l'autre plutot qu'en un
+        // seul chemin : empilees, elles fusionnaient au centre en une bouillie
+        // sans profondeur. Le vertical passe dessous, l'horizontal dessus -- le
+        // contour de celui-ci recouvre le corps de celui-la, et la croix se lit
+        // comme un pont.
+        QPainterPath vertical;
+        vertical.moveTo(milieuBord(tuile, sHaut));
+        vertical.lineTo(milieuBord(tuile, sBas));
 
-    for(const auto& couche : couches) {
-        painter.strokePath(chemin, QPen(couche.couleur, taille * couche.fraction,
-                                        Qt::SolidLine, Qt::FlatCap, Qt::RoundJoin));
+        QPainterPath horizontal;
+        horizontal.moveTo(milieuBord(tuile, sGauche));
+        horizontal.lineTo(milieuBord(tuile, sDroite));
+
+        empilerCouches(painter, vertical, taille);
+        empilerCouches(painter, horizontal, taille);
+
+        // Le carre ou les deux se croisent, c'est-a-dire la largeur d'une
+        // conduite dans les deux sens. Il appartient entierement a
+        // l'horizontale, donc l'eclaircir n'entame pas la verticale.
+        qreal demi = taille * fContour / 2.0;
+        QRectF croisement(tuile.center().x() - demi, tuile.center().y() - demi,
+                          2.0 * demi, 2.0 * demi);
+
+        painter.fillRect(croisement, cCroisement);
+
+        painter.restore();
+        return;
     }
+
+    QVector<ESens> ouv = Ecoulement::ouvertures(type, sens);
+    QPainterPath chemin = cheminTuyau(tuile, type, sens, ouv.first(), 1.0f);
+
+    empilerCouches(painter, chemin, taille);
 
     if(type == tpReservoir) {
         dessinerCuve(painter, tuile);
@@ -267,12 +331,33 @@ void dessinerLiquide(QPainter& painter, const QRectF& tuile, ETypePiece type, ES
     qreal taille = tuile.width();
 
     painter.save();
-    // Meme largeur que le canal : le liquide le remplit exactement, par
-    // construction, puisque c'est le meme chemin.
-    painter.strokePath(chemin, QPen(cLiquide, taille * fCanal,
-                                    Qt::SolidLine, Qt::FlatCap, Qt::RoundJoin));
-    painter.strokePath(chemin, QPen(cLiquideVif, taille * fCanal * 0.35,
-                                    Qt::SolidLine, Qt::FlatCap, Qt::RoundJoin));
+
+    // Une croix traversee verticalement coule SOUS sa conduite horizontale. On
+    // decoupe donc la bande de celle-ci au lieu de la repasser par-dessus : la
+    // croix peut porter du liquide sur ses deux axes, et un tuyau redessine
+    // masquerait le liquide horizontal en meme temps que le vertical.
+    bool sousLaConduite = (type == tpCroix && (entree == sHaut || entree == sBas));
+
+    if(sousLaConduite) {
+        QPainterPath zone;
+        QPainterPath bande;
+
+        zone.addRect(tuile);
+        bande.addRect(bandeHorizontale(tuile));
+        painter.setClipPath(zone.subtracted(bande));
+    }
+
+    tracerLiquide(painter, chemin, taille);
+
+    if(sousLaConduite) {
+        // Le meme trace, restreint cette fois a la bande et attenue : le flux se
+        // devine sous le tuyau au lieu d'y disparaitre. setClipRect remplace le
+        // decoupage precedent, il ne s'y ajoute pas.
+        painter.setClipRect(bandeHorizontale(tuile));
+        painter.setOpacity(opaciteSousConduite);
+        tracerLiquide(painter, chemin, taille);
+        painter.setOpacity(1.0);
+    }
 
     if(type == tpReservoir) {
         // La cuve repasse par-dessus : le depart du liquide, coupe droit, se

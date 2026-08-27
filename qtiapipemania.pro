@@ -15,9 +15,16 @@ equals(PWD, $${OUT_PWD}): error("Compilez dans un repertoire separe : mkdir -p b
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    bot.cpp \
+    botglouton.cpp \
+    botspace.cpp \
+    botspaceanticp.cpp \
+    botfactory.cpp \
+    common.cpp \
     dessinpiece.cpp \
     ecoulement.cpp \
     game.cpp \
+    journal.cpp \
     main.cpp \
     mainwindow.cpp \
     partie.cpp \
@@ -27,10 +34,16 @@ SOURCES += \
     wpanneau.cpp
 
 HEADERS += \
+    bot.h \
+    botglouton.h \
+    botspace.h \
+    botspaceanticp.h \
+    botfactory.h \
     common.h \
     dessinpiece.h \
     ecoulement.h \
     game.h \
+    journal.h \
     mainwindow.h \
     partie.h \
     piecefile.h \

@@ -5,6 +5,15 @@
 static ESens sensReciproques[] = {sBas, sHaut, sDroite, sGauche};
 static SDelta deltas[] = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}};
 
+// Indexee par ESens (sHaut, sBas, sGauche, sDroite). Chaque ligne : le tuyau
+// droit qui suit cet axe, les deux coudes ouverts sur ce cote, la croix.
+static const ETypePiece piecesParEntree[4][4] = {
+    /* sHaut   */ {tpVertical,   tpCoudeHautGauche, tpCoudeHautDroite, tpCroix},
+    /* sBas    */ {tpVertical,   tpCoudeBasGauche,  tpCoudeBasDroite,  tpCroix},
+    /* sGauche */ {tpHorizontal, tpCoudeHautGauche, tpCoudeBasGauche,  tpCroix},
+    /* sDroite */ {tpHorizontal, tpCoudeHautDroite, tpCoudeBasDroite,  tpCroix},
+    };
+
 Ecoulement::Ecoulement(const Game *plateau) {
     int size = plateau->getSize() * NB_AXES;
 
@@ -51,6 +60,10 @@ int Ecoulement::nbCasesTraversees() const {
 
 void Ecoulement::setDureeRemplissage(float secondes) {
     dureeRemplissage = secondes;
+}
+
+float Ecoulement::getDureeRemplissage() const {
+    return dureeRemplissage;
 }
 
 EEtat Ecoulement::avancer(float dt) {
@@ -142,7 +155,6 @@ bool Ecoulement::enCours() const {
 
 int Ecoulement::casesEnAval() const {
     int largeur = plateau->getLargeur();
-    int hauteur = plateau->getHauteur();
     int size = plateau->getSize() * NB_AXES;
 
     // Meme parcours que avancer(), mais a blanc : on part du front courant avec
@@ -162,43 +174,103 @@ int Ecoulement::casesEnAval() const {
     while(!aVoir.isEmpty()) {
         int conduite = aVoir.takeLast();
         int idx = conduite / NB_AXES;
-        int x = idx % largeur;
-        int y = idx / largeur;
+        int suivX, suivY;
+        ESens suivEntree;
 
-        foreach(ESens ouverture, sorties(plateau->getTypePiece(x, y),
-                                         plateau->getSens(x, y),
-                                         (ESens)entreesVues[conduite])) {
-            ESens sensEntre = sensReciproques[(unsigned char)ouverture];
-            int nextX = x + deltas[(unsigned char)ouverture].dx;
-            int nextY = y + deltas[(unsigned char)ouverture].dy;
-
-            if(nextX < 0 || nextX >= largeur || nextY < 0 || nextY >= hauteur) {
-                continue;
-            }
-
-            int nextIdx = nextY * largeur + nextX;
-            ETypePiece nextTypePiece = plateau->getTypePiece(nextX, nextY);
-            int nextConduite = nextIdx * NB_AXES + axe(nextTypePiece, sensEntre);
-
-            if(vus[nextConduite]) {
-                continue;
-            }
-
-            if(!ouvertures(nextTypePiece,
-                           plateau->getSens(nextX, nextY)).contains(sensEntre)) {
-                continue;
-            }
-
-            // A blanc, l'entree de la conduite visee n'est pas encore posee :
-            // c'est celle par laquelle on y arrive.
-            entreesVues[nextConduite] = (unsigned char)sensEntre;
-            vus[nextConduite] = true;
-            compte++;
-            aVoir << nextConduite;
+        if(!suivante(idx % largeur, idx / largeur, (ESens)entreesVues[conduite],
+                     suivX, suivY, suivEntree)) {
+            continue;
         }
+
+        ETypePiece suivType = plateau->getTypePiece(suivX, suivY);
+
+        if(!ouvertures(suivType, plateau->getSens(suivX, suivY)).contains(suivEntree)) {
+            continue;
+        }
+
+        int suivConduite = (suivY * largeur + suivX) * NB_AXES + axe(suivType, suivEntree);
+
+        if(vus[suivConduite]) {
+            continue;
+        }
+
+        // A blanc, l'entree de la conduite visee n'est pas encore posee : c'est
+        // celle par laquelle on y arrive.
+        entreesVues[suivConduite] = (unsigned char)suivEntree;
+        vus[suivConduite] = true;
+        compte++;
+        aVoir << suivConduite;
     }
 
     return compte;
+}
+
+void Ecoulement::voisine(int col, int row, ESens sortie, int& vCol, int& vRow, ESens& vEntree) {
+    vCol = col + deltas[(unsigned char)sortie].dx;
+    vRow = row + deltas[(unsigned char)sortie].dy;
+    vEntree = sensReciproques[(unsigned char)sortie];
+}
+
+bool Ecoulement::suivante(int col, int row, ESens entree,
+                          int& suivCol, int& suivRow, ESens& suivEntree) const {
+    QVector<ESens> sort = sorties(plateau->getTypePiece(col, row),
+                                  plateau->getSens(col, row), entree);
+
+    // Une entree, une sortie : deux ouvertures dont l'une sert d'entree, et la
+    // croix va tout droit. Le tuyau est une ligne, jamais un arbre.
+    if(sort.isEmpty()) {
+        return false;
+    }
+
+    ESens sortie = sort.first();
+
+    suivCol = col + deltas[(unsigned char)sortie].dx;
+    suivRow = row + deltas[(unsigned char)sortie].dy;
+    suivEntree = sensReciproques[(unsigned char)sortie];
+
+    return suivCol >= 0 && suivCol < plateau->getLargeur()
+           && suivRow >= 0 && suivRow < plateau->getHauteur();
+}
+
+bool Ecoulement::tete(int& col, int& row, ESens& entree) const {
+    int idx = plateau->getIdxDepart();
+    int x = idx % plateau->getLargeur();
+    int y = idx / plateau->getLargeur();
+    // Le reservoir n'a pas d'entree : ce qui y est enregistre est sa sortie.
+    ESens e = plateau->getSens(idx);
+
+    // Borne de securite plutot qu'un tableau de visitees : une croix permet de
+    // refermer un circuit sur lui-meme, et la marche tournerait alors sans fin.
+    for(int pas=0; pas<plateau->getSize(); pas++) {
+        int suivX, suivY;
+        ESens suivEntree;
+
+        if(!suivante(x, y, e, suivX, suivY, suivEntree)) {
+            // Le tuyau donne hors grille : fuite programmee, pas de tete.
+            return false;
+        }
+
+        ETypePiece suivType = plateau->getTypePiece(suivX, suivY);
+
+        if(suivType == tpNone) {
+            col = suivX;
+            row = suivY;
+            entree = suivEntree;
+
+            return true;
+        }
+
+        if(!ouvertures(suivType, plateau->getSens(suivX, suivY)).contains(suivEntree)) {
+            // Case bloquee, ou piece posee qui ne presente rien en face.
+            return false;
+        }
+
+        x = suivX;
+        y = suivY;
+        e = suivEntree;
+    }
+
+    return false;
 }
 
 // Seule la croix distingue ses deux axes ; ailleurs le flux ne passe qu'une
@@ -273,6 +345,29 @@ QVector<ESens> Ecoulement::sorties(const ETypePiece& typePiece, const ESens& sen
     }
 
     return resultat;
+}
+
+QVector<ETypePiece> Ecoulement::piecesCompatibles(const ESens& entree) {
+    QVector<ETypePiece> resultat;
+
+    for(int i = 0; i < 4; i++) {
+        resultat << piecesParEntree[(unsigned char)entree][i];
+    }
+
+    return resultat;
+}
+
+int Ecoulement::longueurTracee(const Game *plateau) {
+    int longueur = 0;
+    Ecoulement ecoulement(plateau);
+
+    ecoulement.setDureeRemplissage(1);
+    ecoulement.demarrer();
+    while(ecoulement.avancer(1.0f) == eEnCours) {
+        longueur++;
+    }
+
+    return longueur;
 }
 
 QVector<ESens> Ecoulement::ouvertures(const ETypePiece& typePiece, const ESens& sens) {

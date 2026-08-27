@@ -1,13 +1,23 @@
 #include <QtGlobal>
 #include <QtMath>
+#include <QRandomGenerator>
 #include "partie.h"
 
-// Bareme : la penalite de remplacement est celle du jeu d'origine, les points
-// par case s'y calent (un remplacement coute une case de progression).
+// Bareme : les points par case sont ceux du jeu d'origine. La penalite de
+// remplacement y vaut la moitie d'une case, et c'est ce rapport qui compte --
+// il fixe a partir de quand reecrire une piece deja posee est rentable.
+//
+// A 50, soit une case pleine, il fallait que le remplacement rallonge le trace
+// de DEUX cases pour valoir le coup. A 25, une seule suffit. C'est le geste qui
+// transforme une impasse en route, et celui que les bons joueurs emploient sans
+// hesiter (voir BOT.md) : le tarifer au prix fort revenait a decourager la seule
+// facon de rattraper un mauvais trace.
 #define POINTS_PAR_CASE         50
-#define PENALITE_REMPLACEMENT   50
-// Chaque case deja raccordee en aval du flux quand l'objectif tombe.
-#define POINTS_BONUS_AVANCE     25
+#define PENALITE_REMPLACEMENT   25
+// Prime de depart anticipe : ce que vaut le temps de construction qu'on
+// abandonne. Assez pour valoir le coup une fois l'objectif securise, pas assez
+// pour qu'on la prenne systematiquement des le debut d'une manche.
+#define POINTS_DEPART_ANTICIPE  200
 // Progression de la difficulte, niveau apres niveau. La longueur minimale mene
 // la progression parce qu'elle est lisible pour le joueur ; la vitesse du flux
 // ne suit que doucement, avec un plancher, car elle agit sur l'ecart entre le
@@ -19,33 +29,79 @@
 // l'ouverture voulue. Il faut donc tirer une trentaine de pieces pour en poser
 // vingt d'utiles, d'ou un objectif de depart modeste et un delai genereux.
 //
-// L'objectif plafonne a vingt cases : au-dela, la longueur demandee ne mesure
-// plus l'adresse du joueur mais sa chance au tirage. Passe ce plafond, la
-// difficulte continue de monter par les cases bloquees, le delai de depart et
-// la vitesse du flux.
+// L'objectif ne plafonne plus a portee de jeu : il monte de quatre cases par
+// niveau jusqu'a un plafond qui n'est la que pour borner l'impossible. Le
+// plateau tient 225 cases, moins les 24 bloquees au maximum, soit 201 libres --
+// et une croix se traversant deux fois, un trace peut depasser ce compte. Le
+// plafond est donc physique, pas un reglage de difficulte : passe le niveau 53
+// la manche n'est plus gagnable, et c'est la vraie fin du jeu.
+//
+// Le plafond valait vingt cases avant le reequilibrage du 28/08/2026, puis
+// soixante, atteintes au niveau 14. Le probleme de soixante : passe ce niveau
+// plus RIEN ne montait -- delai, blocs, vitesse et objectif plafonnaient tous
+// entre les niveaux 9 et 14 --, et la partie devenait stationnaire. Un joueur
+// qui franchissait le 14 ne pouvait plus perdre que par malchance de tirage,
+// jamais par difficulte croissante. C'est desormais la longueur, seule, qui
+// porte la difficulte au-dela du niveau 13.
+//
+// Le delai de depart, lui, ne bouge plus du tout : DELAI_MIN vaut DELAI_BASE,
+// donc vingt-deux secondes a tous les niveaux. Il descendait a dix, et ne
+// laissait alors plus le temps de construire un objectif long : on perdait sur
+// le chronometre avant d'avoir pu montrer quoi que ce soit du trace. C'est la
+// longueur qui doit tuer, pas la montre -- et elle, elle monte sans fin.
 #define LONGUEUR_BASE           10
-#define LONGUEUR_PAS            2
-#define LONGUEUR_MAX            20
+#define LONGUEUR_PAS            4
+#define LONGUEUR_MAX            220
 #define DELAI_BASE              22.0f
-#define DELAI_MIN               10.0f
-#define DUREE_BASE              0.30f
+#define DELAI_MIN               22.0f
+#define DUREE_BASE              1.50f
 #define DUREE_FACTEUR           0.95f
-#define DUREE_MIN               0.12f
+#define DUREE_MIN               1.00f
 // Cases infranchissables : levier de difficulte qui joue sur la reflexion et
 // non sur le rythme, donc sans risque d'approcher le point de bascule ou le
 // flux irait plus vite que la main du joueur.
 #define BLOQUEES_PAS            2
 #define BLOQUEES_MAX            24
+// Plateau et file tirent chacun leur graine de manche : sans ce decoupage, les
+// deux generateurs partiraient du meme etat et le placement du reservoir serait
+// correle a la premiere piece.
+#define CANAL_PLATEAU           0
+#define CANAL_FILE              1
+#define NB_CANAUX               2
 // Temps d'affichage du resultat avant d'enchainer.
 #define PAUSE_REUSSIE           2.5f
 #define PAUSE_PERDUE            3.5f
 
-Partie::Partie(int largeur, int hauteur) {
-    plat = new Game(largeur, hauteur);
-    ecoul = new Ecoulement(plat);
-    fil = new PieceFile(FILE_SIZE);
+// Chaque manche est tiree a partir de (graine de partie, niveau) : le niveau 13
+// est donc le meme dans deux parties de meme graine, quel que soit le chemin
+// suivi pour y arriver. C'est ce qui permet de comparer deux facons de jouer sur
+// exactement les memes niveaux.
+//
+// Le melange est un vrai brassage de bits et non une simple addition : deux
+// graines voisines doivent donner des suites sans rapport, ce qu'un generateur
+// seme par un seul entier ne garantit pas de lui-meme.
+static quint32 grainePour(quint32 graine, int niveau, quint32 canal) {
+    quint32 x = graine + (quint32)(niveau * NB_CANAUX + canal) * 0x9E3779B9u;
 
-    nouvellePartie();
+    x ^= x >> 16;
+    x *= 0x7FEB352Du;
+    x ^= x >> 15;
+    x *= 0x846CA68Bu;
+    x ^= x >> 16;
+
+    return x;
+}
+
+Partie::Partie(int largeur, int hauteur)
+    : Partie(largeur, hauteur, QRandomGenerator::securelySeeded().generate()) {
+}
+
+Partie::Partie(int largeur, int hauteur, quint32 seed) {
+    plat = new Game(largeur, hauteur, seed);
+    ecoul = new Ecoulement(plat);
+    fil = new PieceFile(FILE_SIZE, seed);
+
+    nouvellePartie(seed);
 }
 
 Partie::~Partie() {
@@ -54,24 +110,47 @@ Partie::~Partie() {
     delete fil;
 }
 
+// Une defaite relance une partie neuve, donc une nouvelle graine : on ne veut
+// pas rejouer indefiniment le meme tirage apres chaque echec.
 void Partie::nouvellePartie() {
-    niveauCourant = 1;
+    nouvellePartie(QRandomGenerator::securelySeeded().generate());
+}
+
+void Partie::setNiveauDepart(int niveau) {
+    niveauDepart = qMax(1, niveau);
+    niveauCourant = niveauDepart;
+    nouvelleManche();
+}
+
+void Partie::nouvellePartie(quint32 seed) {
+    grainePartie = seed;
+    niveauCourant = niveauDepart;
     pointsCourants = 0;
+    remplacements = 0;
     nouvelleManche();
 }
 
 void Partie::nouvelleManche() {
-    plat->reinitialiser(nbCasesBloquees());
+    plat->reinitialiser(nbCasesBloquees(), grainePour(grainePartie, niveauCourant, CANAL_PLATEAU));
+    // La file repart neuve a chaque manche : c'est la condition pour qu'un
+    // niveau donne soit identique d'une partie a l'autre.
+    fil->reinitialiser(grainePour(grainePartie, niveauCourant, CANAL_FILE));
     ecoul->reinitialiser();
     ecoul->setDureeRemplissage(dureeRemplissageNiveau());
 
     tempsAvantDepart = delaiDepartNiveau();
-    bonusCourant = 0;
     etatCourant = epAttente;
 }
 
-// Le flux accelere doucement, mais jamais au-dela du plancher : passe ce point
-// il irait plus vite que la main du joueur et toute manche serait perdue.
+// Le flux accelere doucement, mais jamais au-dela du plancher. Ce plancher tient
+// une promesse : a la cadence humaine de reference (2 poses/s), le joueur a le
+// temps de defausser DEUX pieces pendant que le flux en traverse une. C'est ce
+// qui fait qu'une mauvaise serie de tirages coute du terrain sans coûter la
+// manche. Le jeu commence plus genereux encore (trois gestes par case) et se
+// resserre jusqu'a cette garantie.
+//
+// Le temps ne pouvant plus tuer seul, c'est la longueur exigee qui porte la
+// difficulte : son pas et son plafond ont ete releves d'autant.
 float Partie::dureeRemplissageNiveau() const {
     return qMax(DUREE_MIN, (float)(DUREE_BASE * qPow(DUREE_FACTEUR, niveauCourant - 1)));
 }
@@ -92,19 +171,41 @@ void Partie::lancerEcoulement() {
     etatCourant = epEcoulement;
 }
 
+bool Partie::lancerFluxAnticipe() {
+    if(etatCourant != epAttente) {
+        return false;
+    }
+
+    pointsCourants += POINTS_DEPART_ANTICIPE;
+    lancerEcoulement();
+
+    return true;
+}
+
+bool Partie::passerLaSuite() {
+    if(etatCourant != epReussie && etatCourant != epPerdue) {
+        return false;
+    }
+
+    // On ne duplique pas l'enchainement : avancer() le fait deja, et le
+    // reecrire ici serait deux endroits a tenir d'accord sur ce que veut dire
+    // "manche suivante". Il suffit que la pause soit ecoulee.
+    tempsAvantSuite = 0.0f;
+
+    return true;
+}
+
 void Partie::terminerManche() {
     int traversees = ecoul->nbCasesTraversees();
 
+    // Tout ce que le flux a parcouru compte, et rien d'autre. La manche allant
+    // jusqu'au bout du tuyau, construire au-dela de l'objectif se paie
+    // directement au tarif de la case traversee : c'est ce qui a permis de
+    // supprimer l'ancien bonus d'avance, qui n'etait qu'un pis-aller pour
+    // compenser une manche coupee avant que le tuyau construit soit parcouru.
     pointsCourants += traversees * POINTS_PAR_CASE;
-    bonusCourant = 0;
 
     if(traversees >= longueurMinimale()) {
-        // La manche s'arrete des l'objectif atteint : sans bonus, tout ce que le
-        // joueur a construit au-dela ne rapporterait rien et le score serait le
-        // meme a chaque reussite. On compte donc la tuyauterie deja raccordee en
-        // aval du flux, qui mesure l'avance prise.
-        bonusCourant = ecoul->casesEnAval() * POINTS_BONUS_AVANCE;
-        pointsCourants += bonusCourant;
         etatCourant = epReussie;
         tempsAvantSuite = PAUSE_REUSSIE;
     } else {
@@ -126,13 +227,12 @@ void Partie::avancer(float dt) {
     case epEcoulement: {
         EEtat etatFlux = ecoul->avancer(dt);
 
-        // Deux facons de finir. Soit l'objectif est atteint, et la manche
-        // s'arrete aussitot : sans cela, un joueur qui poserait plus vite que
-        // le flux ne consomme ne perdrait jamais et la manche durerait
-        // indefiniment. Soit le flux s'arrete de lui-meme, et c'est alors la
-        // longueur atteinte qui decide de l'issue -- une fuite n'est pas une
-        // defaite en soi.
-        if(ecoul->nbCasesTraversees() >= longueurMinimale() || etatFlux != eEnCours) {
+        // Une seule facon de finir : le flux s'arrete de lui-meme, faute de
+        // tuyau devant lui. C'est alors la longueur parcourue qui decide -- une
+        // fuite n'est pas une defaite en soi. On pose jusqu'au bout, et la
+        // manche reste bornee sans qu'il faille l'interdire : on ne pose que sur
+        // des cases libres, et il y en a un nombre fini.
+        if(etatFlux != eEnCours) {
             terminerManche();
         }
         break;
@@ -181,8 +281,11 @@ bool Partie::poserPiece(int col, int row) {
     ETypePiece actuelle = plat->getTypePiece(col, row);
 
     if(actuelle != tpNone) {
-        // Convention arcade : le compteur ne descend pas sous zero.
+        // Convention arcade : le compteur ne descend pas sous zero. Le compteur
+        // de remplacements, lui, compte le geste et non ce qu'il a coute : c'est
+        // le geste qu'on veut suivre, et le plancher rognerait la mesure.
         pointsCourants = qMax(0, pointsCourants - PENALITE_REMPLACEMENT);
+        remplacements++;
     }
 
     Piece piece = fil->depiler();
@@ -200,20 +303,32 @@ int Partie::score() const {
     return pointsCourants;
 }
 
-int Partie::niveau() const {
-    return niveauCourant;
+int Partie::nbRemplacements() const {
+    return remplacements;
 }
 
-int Partie::bonusManche() const {
-    return bonusCourant;
+quint32 Partie::getGraine() const {
+    return grainePartie;
+}
+
+int Partie::niveau() const {
+    return niveauCourant;
 }
 
 int Partie::casesTraversees() const {
     return ecoul->nbCasesTraversees();
 }
 
+int Partie::longueurTracee() const {
+    return Ecoulement::longueurTracee(plat);
+}
+
 int Partie::longueurMinimale() const {
     return qMin(LONGUEUR_MAX, LONGUEUR_BASE + LONGUEUR_PAS * (niveauCourant - 1));
+}
+
+float Partie::secondesAvantDepart() const {
+    return etatCourant == epAttente ? qMax(0.0f, tempsAvantDepart) : 0.0f;
 }
 
 float Partie::fractionAvantDepart() const {
@@ -230,4 +345,20 @@ Ecoulement* Partie::ecoulement() const {
 
 PieceFile* Partie::file() const {
     return fil;
+}
+
+int Partie::getXDepart() const {
+    return plat->getIdxDepart() % plat->getLargeur();
+}
+
+int Partie::getYDepart() const {
+    return plat->getIdxDepart() / plat->getLargeur();
+}
+
+int Partie::getLargeur() const {
+    return plat->getLargeur();
+}
+
+int Partie::getHauteur() const {
+    return plat->getHauteur();
 }
