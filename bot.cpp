@@ -892,6 +892,12 @@ void Bot::propagerDepuisTete(int besoin) {
 
             if(!issues.contains(sortie.first())) {
                 issues << sortie.first();
+
+                // Meme raccourci qu'au marquage : deux directions suffisent a
+                // conclure, les espaceApres suivants ne serviraient a rien.
+                if(issues.size() > 1) {
+                    break;
+                }
             }
         }
 
@@ -1091,6 +1097,15 @@ void Bot::marquerObligations() {
 
                     if(!issues.contains(sortie.first())) {
                         issues << sortie.first();
+
+                        // Deux directions vivantes : la case n'est plus forcee
+                        // pour cette entree, et rien de ce qui suit ne peut le
+                        // changer. Inutile de payer les espaceApres restants --
+                        // c'est le cas de l'immense majorite des cases (4
+                        // obligees sur ~200), donc c'est la que le temps passe.
+                        if(issues.size() > 1) {
+                            break;
+                        }
                     }
                 }
 
@@ -1134,18 +1149,20 @@ Bot::Bot(Partie *p, float cadence, quint32 seed) {
     this->seed = seed;
 
     tas.fill(0, p->getLargeur() * p->getHauteur());
-    grainePlateauVue = p->plateau()->getGraine();
+    mancheVue = p->numeroManche();
     construirePlan();
 }
 
 void Bot::avancer(float dt) {
-    // La graine de plateau est propre a la manche : elle change au niveau
-    // suivant comme apres une defaite. C'est le seul signal fiable -- une
-    // defaite remet le niveau a 1, donc le numero de niveau seul ne suffit pas.
-    quint32 graine = p->plateau()->getGraine();
+    // Le numero de manche, et surtout pas la graine du plateau : depuis les
+    // vies, une defaite rejoue le MEME niveau, donc la meme graine derivee. Se
+    // fier a la graine faisait manquer le rejeu au bot -- il gardait son tas,
+    // son plan, et son "fonce" de la manche d'avant, lancait donc le flux sur
+    // un plateau vide et brulait ses vies d'affilee sans poser une piece.
+    int manche = p->numeroManche();
 
-    if(graine != grainePlateauVue) {
-        grainePlateauVue = graine;
+    if(manche != mancheVue) {
+        mancheVue = manche;
         tas.fill(0, p->getLargeur() * p->getHauteur());
         fonce = false;
 
@@ -1157,8 +1174,9 @@ void Bot::avancer(float dt) {
         // partie, niveau) : elle ne se repasse pas a --graine. La commande de
         // rejeu, elle, est affichee par la fenetre a chaque manche.
         qDebug() << "=== nouvelle manche === niveau=" << p->niveau()
+                 << "vies=" << p->vies()
                  << "objectif=" << p->longueurMinimale()
-                 << "graine plateau (derivee)=" << graine
+                 << "graine plateau (derivee)=" << p->plateau()->getGraine()
                  << "reservoir=(" << p->getXDepart() << "," << p->getYDepart() << ")";
     }
 

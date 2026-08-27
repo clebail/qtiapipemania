@@ -26,12 +26,14 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), horloge() {
     pbGlouton->setCheckable(true);
     pbSpace->setCheckable(true);
     pbSpaceAnticp->setCheckable(true);
+    pbMemoire->setCheckable(true);
 
     // Sans ca, un bouton garde le focus apres le clic et avale la barre
     // d'espace : elle rejouerait le bouton au lieu de lancer le flux.
     pbGlouton->setFocusPolicy(Qt::NoFocus);
     pbSpace->setFocusPolicy(Qt::NoFocus);
     pbSpaceAnticp->setFocusPolicy(Qt::NoFocus);
+    pbMemoire->setFocusPolicy(Qt::NoFocus);
     pbPause->setFocusPolicy(Qt::NoFocus);
     pbGeste->setFocusPolicy(Qt::NoFocus);
     pbPose->setFocusPolicy(Qt::NoFocus);
@@ -223,7 +225,7 @@ void MainWindow::battement() {
 
     // Fin de manche : c'est la que le journal peut dire quels gestes ont servi.
     if(journal != nullptr && p->etat() != avant
-       && (p->etat() == epReussie || p->etat() == epPerdue)) {
+       && (p->etat() == epReussie || p->etat() == epPerdue || p->etat() == epGameOver)) {
         journal->finDeManche(p);
     }
 
@@ -294,6 +296,7 @@ QString MainWindow::nomBotCourant() const {
     if(pbGlouton->isChecked())     return "glouton";
     if(pbSpace->isChecked())       return "space";
     if(pbSpaceAnticp->isChecked()) return "spaceAnticp";
+    if(pbMemoire->isChecked())     return "memoire";
 
     return QString();
 }
@@ -310,6 +313,7 @@ void MainWindow::installerBot(const QString &nom) {
     pbGlouton->setChecked(nom == "glouton");
     pbSpace->setChecked(nom == "space");
     pbSpaceAnticp->setChecked(nom == "spaceAnticp");
+    pbMemoire->setChecked(nom == "memoire");
 
     majPasAPas();
 }
@@ -326,6 +330,10 @@ void MainWindow::on_pbSpace_clicked() {
 
 void MainWindow::on_pbSpaceAnticp_clicked() {
     installerBot(pbSpaceAnticp->isChecked() ? "spaceAnticp" : QString());
+}
+
+void MainWindow::on_pbMemoire_clicked() {
+    installerBot(pbMemoire->isChecked() ? "memoire" : QString());
 }
 
 // Simple bascule : un clic fige la partie (bot compris, battement() ne fait

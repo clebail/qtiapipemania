@@ -351,7 +351,7 @@ private:
     QVector<unsigned char> oblige;
     // Etat du plateau au dernier marquage, pour ne pas le refaire pour rien.
     quint32 signatureVue = 0;
-    quint32 grainePlateauVue;
+    int mancheVue;
     // Barre d'espace demandee. Comme pour le joueur, sans retour : ne retombe
     // qu'a la manche suivante, quand la graine de plateau change.
     bool fonce = false;

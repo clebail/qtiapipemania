@@ -1,4 +1,5 @@
 #include <QPainter>
+#include <QPainterPath>
 #include "wpanneau.h"
 #include "dessinpiece.h"
 
@@ -108,6 +109,48 @@ int WPanneau::dessinerNiveau(QPainter& painter, int y) {
     return mesure.height();
 }
 
+// Vies restantes, en coeurs, sous le numero de niveau.
+//
+// Le pas est calcule pour que les NEUF coeurs du plafond tiennent sur une seule
+// rangee, et la rangee garde sa hauteur meme a zero vie : le bloc d'information
+// ne doit pas se decaler d'un cran chaque fois qu'une vie se gagne ou se perd,
+// sans quoi c'est tout le panneau qui sautille en pleine manche.
+int WPanneau::dessinerVies(QPainter& painter, int y) {
+    static const QColor cCoeur(0xe8, 0x48, 0x58);
+
+    // Neuf pas dans la largeur utile, et un coeur un peu plus etroit que son pas
+    // pour que deux voisins ne se touchent pas.
+    qreal pas = (width() - 12) / 9.0;
+    qreal r = qMax(3.0, pas * 0.36);
+    int n = qBound(0, partie->vies(), 9);
+
+    if(n > 0) {
+        qreal x = (width() - n * pas) / 2.0 + pas / 2.0;
+        qreal cy = y + pas / 2.0;
+
+        painter.save();
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(cCoeur);
+
+        for(int i = 0; i < n; i++) {
+            qreal cx = x + i * pas;
+
+            // Deux lobes et une pointe : la pointe est le point de depart et
+            // d'arrivee, les deux courbes remontent chacune d'un cote.
+            QPainterPath coeur;
+            coeur.moveTo(cx, cy + r);
+            coeur.cubicTo(cx - r * 1.5, cy - r * 0.3, cx - r * 0.5, cy - r * 1.3, cx, cy - r * 0.35);
+            coeur.cubicTo(cx + r * 0.5, cy - r * 1.3, cx + r * 1.5, cy - r * 0.3, cx, cy + r);
+
+            painter.drawPath(coeur);
+        }
+
+        painter.restore();
+    }
+
+    return (int)(pas + 0.5);
+}
+
 // Un compteur du bloc d'etat : libelle terne, valeur claire, sur une ligne
 // dont la police est reduite jusqu'a tenir dans le panneau. Renvoie la hauteur
 // occupee, pour que l'appelant empile sans connaitre la police choisie.
@@ -145,15 +188,15 @@ void WPanneau::dessinerEtat(QPainter& painter, int y, int tailleScore) {
     static const QColor cReussi(0x2f, 0xbf, 0x4f);
     static const QColor cPerdu(0xd8, 0x50, 0x40);
 
+    // Les etats courants -- attente et ecoulement -- n'ont pas de titre : les
+    // deux compteurs disent deja ou en est la manche, et le mot ne faisait que
+    // pousser le bloc vers le bas. Seuls les verdicts, eux ponctuels, s'annoncent.
     QString titre;
     QColor couleur = cVif;
 
     switch(partie->etat()) {
     case epAttente:
-        titre = tr("PRET");
-        break;
     case epEcoulement:
-        titre = tr("FLUX");
         break;
     case epReussie:
         titre = tr("REUSSI");
@@ -163,21 +206,31 @@ void WPanneau::dessinerEtat(QPainter& painter, int y, int tailleScore) {
         titre = tr("PERDU");
         couleur = cPerdu;
         break;
+    case epGameOver:
+        titre = tr("GAME OVER");
+        couleur = cPerdu;
+        break;
     }
 
     int disponible = width() - 12;
+    int tailleTitre = tailleScore * 2 / 3;
+    int yc = y;
 
-    QFont policeTitre("monospace");
-    policeTitre.setStyleHint(QFont::TypeWriter);
-    policeTitre.setBold(true);
-    int tailleTitre = qMin(tailleQuiTient(policeTitre, titre, disponible, 72), tailleScore * 2 / 3);
-    policeTitre.setPixelSize(tailleTitre);
+    if(!titre.isEmpty()) {
+        QFont policeTitre("monospace");
+        policeTitre.setStyleHint(QFont::TypeWriter);
+        policeTitre.setBold(true);
+        tailleTitre = qMin(tailleQuiTient(policeTitre, titre, disponible, 72), tailleTitre);
+        policeTitre.setPixelSize(tailleTitre);
 
-    QFontMetrics mesureTitre(policeTitre);
-    painter.setFont(policeTitre);
-    painter.setPen(couleur);
-    painter.drawText(QPointF((width() - mesureTitre.horizontalAdvance(titre)) / 2.0,
-                             y + mesureTitre.ascent()), titre);
+        QFontMetrics mesureTitre(policeTitre);
+        painter.setFont(policeTitre);
+        painter.setPen(couleur);
+        painter.drawText(QPointF((width() - mesureTitre.horizontalAdvance(titre)) / 2.0,
+                                 y + mesureTitre.ascent()), titre);
+
+        yc += mesureTitre.height() + 4;
+    }
 
     // Deux compteurs et non un. Le tuyau pose et le flux qui le parcourt ne
     // repondent pas a la meme question, et c'est leur ecart -- l'avance -- qui
@@ -190,14 +243,13 @@ void WPanneau::dessinerEtat(QPainter& painter, int y, int tailleScore) {
     int pose = partie->longueurTracee();
     int requis = partie->longueurMinimale();
 
-    int yc = y + mesureTitre.height() + 6;
     int maxi = qMax(9, tailleTitre * 3 / 4);
 
     // L'objectif passe au vert des qu'il est atteint : c'est tout ce que la
     // barre d'espace demande de savoir.
     yc += dessinerCompteur(painter, yc, maxi, tr("OBJECTIF"),
                            QString("%1/%2").arg(pose).arg(requis),
-                           pose >= requis ? cReussi : cVif) + 3;
+                           pose >= requis ? cReussi : cVif) + 2;
 
     dessinerCompteur(painter, yc, maxi, tr("PARCOURU"),
                      QString("%1/%2").arg(partie->casesTraversees()).arg(pose),
@@ -301,8 +353,9 @@ void WPanneau::paintEvent(QPaintEvent *) {
     // l'animation : elle atteint le bas de la case (taille), donc on demarre
     // une case plus bas.
     // Bloc d'information sous la file : niveau, score, etat de la manche.
-    int y = (taille + 1) * spriteH + 10;
-    y += dessinerNiveau(painter, y) + 12;
+    int y = (taille + 1) * spriteH + 6;
+    y += dessinerNiveau(painter, y) + 2;
+    y += dessinerVies(painter, y) + 4;
     dessinerScore(painter, y);
-    dessinerEtat(painter, y + hauteurScore + 18, tailleChiffres);
+    dessinerEtat(painter, y + hauteurScore + 10, tailleChiffres);
 }

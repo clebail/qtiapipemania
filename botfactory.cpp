@@ -2,6 +2,7 @@
 #include "botglouton.h"
 #include "botspace.h"
 #include "botspaceanticp.h"
+#include "botmemoire.h"
 
 // Ajouter une strategie : une ligne ici, une ligne dans noms(), et rien
 // ailleurs.
@@ -18,9 +19,13 @@ Bot * BotFactory::createInstance(const QString &nom, Partie *p, float cadence, q
         return new BotSpaceAnticp(p, cadence, seed);
     }
 
+    if(nom == "memoire") {
+        return new BotMemoire(p, cadence, seed);
+    }
+
     return nullptr;
 }
 
 QStringList BotFactory::noms() {
-    return QStringList() << "glouton" << "space" << "spaceAnticp";
+    return QStringList() << "glouton" << "space" << "spaceAnticp" << "memoire";
 }

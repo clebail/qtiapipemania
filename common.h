@@ -39,7 +39,12 @@ typedef enum _EEtatPartie {
     epAttente,      // le joueur pose ses tuyaux, le flux n'est pas encore parti
     epEcoulement,   // le flux progresse
     epReussie,      // manche gagnee : longueur minimale atteinte
-    epPerdue        // manche perdue : le flux s'est arrete trop tot
+    // Manche perdue et fin de partie sont deux choses distinctes depuis les
+    // vies : la premiere coute une vie et rejoue le MEME niveau, la seconde
+    // seule remet les compteurs a zero. Les confondre -- ce que faisait
+    // epPerdue -- rendait la vie impossible a depenser.
+    epPerdue,       // manche perdue : le flux s'est arrete trop tot, il reste des vies
+    epGameOver      // plus de vie : la partie est finie
 } EEtatPartie;
 
 #endif // COMMON_H

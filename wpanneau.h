@@ -32,6 +32,7 @@ private:
     int spriteHeight() const;
     void memoriserPieces();
     int dessinerNiveau(QPainter& painter, int y);
+    int dessinerVies(QPainter& painter, int y);
     void dessinerScore(QPainter& painter, int y);
     void dessinerEtat(QPainter& painter, int y, int tailleScore);
     int dessinerCompteur(QPainter& painter, int y, int maxi, const QString& libelle,

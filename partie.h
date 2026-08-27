@@ -52,6 +52,10 @@ public:
     EEtatPartie etat() const;
     int score() const;
     int niveau() const;
+    // Vies restantes, celle qu'on est en train de jouer comprise. Zero ne se
+    // voit qu'a l'etat epGameOver : tant qu'il en reste une, la manche perdue
+    // se rejoue.
+    int vies() const;
     int casesTraversees() const;
 
     int longueurMinimale() const;
@@ -61,6 +65,12 @@ public:
     int longueurTracee() const;
     // Graine de la partie en cours : suffit a la rejouer entierement.
     quint32 getGraine() const;
+    // Numero de la manche depuis la construction, croissant sans jamais
+    // revenir en arriere. C'est le seul signal fiable d'un changement de manche
+    // depuis que la defaite REJOUE le meme niveau : plateau, file et graine
+    // derivee sont alors identiques a ceux de la manche precedente, et les
+    // comparer ne dit plus rien.
+    int numeroManche() const;
     // Remplacements payes depuis le debut de la partie. Le score seul ne se
     // decompose pas -- il melange traversees, primes et penalites -- et c'est ce
     // qui a laisse inexpliquees plusieurs mesures (voir BOT.md).
@@ -91,7 +101,14 @@ private:
     quint32 grainePartie = 0;
     int niveauCourant = 1;
     int niveauDepart = 1;
+    int mancheCourante = 0;
     int pointsCourants = 0;
+    int viesRestantes = 0;
+    // Points a atteindre pour la prochaine vie de rythme. Il MONTE et ne
+    // redescend jamais : le score, lui, descend de 25 a chaque ecrasement, donc
+    // sans ce cliquet la meme barre se paierait plusieurs fois par partie
+    // (mesure : +21 % de vies, voir VIES.md).
+    int prochainPalier = 0;
     int remplacements = 0;
     float tempsAvantDepart = 0.0f;
     float tempsAvantSuite = 0.0f;
@@ -101,6 +118,11 @@ private:
     float delaiDepartNiveau() const;
     void lancerEcoulement();
     void terminerManche();
+    // Vies gagnees en fin de manche : les paliers de points, et la belle
+    // manche. Appelee avant de decompter la vie perdue, pour qu'une manche qui
+    // finit bien puisse payer la defaite qu'elle vient de subir.
+    void crediterVies(int traversees, bool reussie);
+    void gagnerVie();
 };
 
 #endif // PARTIE_H

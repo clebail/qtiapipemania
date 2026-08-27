@@ -71,6 +71,25 @@
 // Temps d'affichage du resultat avant d'enchainer.
 #define PAUSE_REUSSIE           2.5f
 #define PAUSE_PERDUE            3.5f
+// Vies. Trois au depart, plafond neuf. Perdre une manche coute une vie et
+// rejoue le MEME niveau -- meme plateau, meme file, puisque tout derive de
+// (graine de partie, niveau). Les points sont conserves ; seul le game over
+// remet le compteur a zero.
+#define VIES_DEPART             3
+#define VIES_MAX                9
+// Une vie tous les 20 000 points : la seule regle qui ne s'eteigne jamais,
+// puisqu'elle paie proportionnellement au chemin parcouru. Le palier atteint se
+// memorise (voir prochainPalier).
+#define PALIER_VIE              20000
+// Une vie par belle manche. Seuil ABSOLU de traversees, pas un multiple de
+// l'objectif : recompenser objectif x 2 revenait a recompenser la petitesse de
+// l'objectif, pas la performance.
+//
+// Reserve aux manches REUSSIES, et ce n'est pas un scrupule de bareme : passe
+// le niveau 26 l'objectif vaut 110, donc une manche perdue pourrait franchir le
+// seuil et rendre la vie qu'elle vient de couter, a chaque tentative. La partie
+// ne se terminerait plus.
+#define BELLE_MANCHE            110
 
 // Chaque manche est tiree a partir de (graine de partie, niveau) : le niveau 13
 // est donc le meme dans deux parties de meme graine, quel que soit le chemin
@@ -126,11 +145,14 @@ void Partie::nouvellePartie(quint32 seed) {
     grainePartie = seed;
     niveauCourant = niveauDepart;
     pointsCourants = 0;
+    viesRestantes = VIES_DEPART;
+    prochainPalier = PALIER_VIE;
     remplacements = 0;
     nouvelleManche();
 }
 
 void Partie::nouvelleManche() {
+    mancheCourante++;
     plat->reinitialiser(nbCasesBloquees(), grainePour(grainePartie, niveauCourant, CANAL_PLATEAU));
     // La file repart neuve a chaque manche : c'est la condition pour qu'un
     // niveau donne soit identique d'une partie a l'autre.
@@ -183,7 +205,7 @@ bool Partie::lancerFluxAnticipe() {
 }
 
 bool Partie::passerLaSuite() {
-    if(etatCourant != epReussie && etatCourant != epPerdue) {
+    if(etatCourant != epReussie && etatCourant != epPerdue && etatCourant != epGameOver) {
         return false;
     }
 
@@ -205,12 +227,39 @@ void Partie::terminerManche() {
     // compenser une manche coupee avant que le tuyau construit soit parcouru.
     pointsCourants += traversees * POINTS_PAR_CASE;
 
-    if(traversees >= longueurMinimale()) {
+    bool reussie = traversees >= longueurMinimale();
+
+    // Crediter AVANT de decompter : la manche qui franchit un palier en mourant
+    // paie la vie qu'elle est en train de perdre. L'ordre inverse condamnerait
+    // sur un game over des points deja gagnes.
+    crediterVies(traversees, reussie);
+
+    if(reussie) {
         etatCourant = epReussie;
         tempsAvantSuite = PAUSE_REUSSIE;
-    } else {
-        etatCourant = epPerdue;
-        tempsAvantSuite = PAUSE_PERDUE;
+        return;
+    }
+
+    viesRestantes--;
+    etatCourant = viesRestantes > 0 ? epPerdue : epGameOver;
+    tempsAvantSuite = PAUSE_PERDUE;
+}
+
+void Partie::gagnerVie() {
+    viesRestantes = qMin(VIES_MAX, viesRestantes + 1);
+}
+
+void Partie::crediterVies(int traversees, bool reussie) {
+    // Le palier franchi se memorise, meme quand la vie qu'il donne est perdue
+    // sur le plafond : sinon la barre suivante serait celle qu'on vient de
+    // passer, et le premier ecrasement la rendrait a nouveau payante.
+    while(pointsCourants >= prochainPalier) {
+        gagnerVie();
+        prochainPalier += PALIER_VIE;
+    }
+
+    if(reussie && traversees >= BELLE_MANCHE) {
+        gagnerVie();
     }
 }
 
@@ -240,13 +289,20 @@ void Partie::avancer(float dt) {
 
     case epReussie:
     case epPerdue:
-        // On laisse le resultat affiche un instant, puis on enchaine : niveau
-        // suivant si la manche est reussie, nouvelle partie sinon.
+    case epGameOver:
+        // On laisse le resultat affiche un instant, puis on enchaine. Trois
+        // suites et non deux : niveau suivant si la manche est reussie, MEME
+        // niveau si elle est perdue -- c'est la vie qu'on vient de payer --,
+        // partie neuve au game over seulement.
         tempsAvantSuite -= dt;
 
         if(tempsAvantSuite <= 0.0f) {
             if(etatCourant == epReussie) {
                 niveauCourant++;
+                nouvelleManche();
+            } else if(etatCourant == epPerdue) {
+                // Points conserves, niveau inchange : le rejeu redonne le meme
+                // plateau et la meme file, tout l'interet de la vie depensee.
                 nouvelleManche();
             } else {
                 nouvellePartie();
@@ -297,6 +353,14 @@ bool Partie::poserPiece(int col, int row) {
 
 EEtatPartie Partie::etat() const {
     return etatCourant;
+}
+
+int Partie::vies() const {
+    return viesRestantes;
+}
+
+int Partie::numeroManche() const {
+    return mancheCourante;
 }
 
 int Partie::score() const {
