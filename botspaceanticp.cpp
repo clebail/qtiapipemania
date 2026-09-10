@@ -30,6 +30,10 @@ bool BotSpaceAnticp::poseAcceptable(const ETypePiece& type, int col, int row, ES
     return !strict || !culDeSac(type, col, row, entree);
 }
 
+bool BotSpaceAnticp::coupSpecial(int, int, ESens) {
+    return false;
+}
+
 bool BotSpaceAnticp::caseAnticipee(int tCol, int tRow, ESens tEntree, int pont,
                                    int &fCol, int &fRow, ESens &fEntree,
                                    QVector<int> *chaine) const {
@@ -187,6 +191,11 @@ void BotSpaceAnticp::jouer(float dt) {
     // Aucune piece ne peut prolonger la tete : inutile d'anticiper ou d'attendre.
     if(teteCondamnee(col, row, entree)) {
         abandonner(col, row, entree);
+        return;
+    }
+
+    // Point d'extension des sous-classes : voir coupSpecial. Ici, rien.
+    if(coupSpecial(col, row, entree)) {
         return;
     }
 

@@ -1,0 +1,1265 @@
+
+===== CAS graine=3 niveau=20 geste=1070 =====
+  X = coude (9,10) a convertir en croix
+  A = tete avant (12,7)   B = tete apres (8,11)
+  longueur du flux : 66 -> 69   segment reparcouru a l'envers : 7 cases
+  objectif restant : 37
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r,r*-*-*+*7*. . . # r,-,7,r,7,
+  1  r*+*7*# . +*# |,# r,J,r,+,J,|,
+  2  l*j*|*r*7*o*# L,. J,# L,J,# |,
+  3  . r*j*+*+*+,7,# . . -,-,-,7,|,
+  4  r*j*r*j*+*. . . . . . -,7,. J,
+  5  |*. |*-,L 7 -,. . . . . J,# . 
+  6  l*7*l*7*. L 7 # . . . . # . # 
+  7  . |*. |*# r,| . . . # . A 7,. 
+  8  . l*7*l*7*r J . . . -,-,-,J,# 
+  9  |,# |*. |*L - + + 7 | # r,. 7,
+ 10  . . +*. l*7*r,J,. X J -,+,-,J,
+ 11  . . |*# . |*J,. B +,7,# |,r,7,
+ 12  L,. |*# . |*-,+,. L,J,r,+,J,|,
+ 13  # r,|*. r*j*. L,J,# r,J,L,-,J,
+ 14  . L,l*-*j*J,L,. -,-,J,# . # . 
+
+===== CAS graine=3 niveau=20 geste=1070 =====
+  X = coude (10,10) a convertir en croix
+  A = tete avant (12,7)   B = tete apres (13,9)
+  longueur du flux : 66 -> 70   segment reparcouru a l'envers : 6 cases
+  objectif restant : 36
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r,r*-*-*+*7*. . . # r,-,7,r,7,
+  1  r*+*7*# . +*# |,# r,J,r,+,J,|,
+  2  l*j*|*r*7*o*# L,. J,# L,J,# |,
+  3  . r*j*+*+*+,7,# . . -,-,-,7,|,
+  4  r*j*r*j*+*. . . . . . -,7,. J,
+  5  |*. |*-,L 7 -,. . . . . J,# . 
+  6  l*7*l*7*. L 7 # . . . . # . # 
+  7  . |*. |*# r,| . . . # . A 7,. 
+  8  . l*7*l*7*r J . . . -,-,-,J,# 
+  9  |,# |*. |*L - + + 7 | # r,B 7,
+ 10  . . +*. l*7*r,J,. L X -,+,-,J,
+ 11  . . |*# . |*J,. . +,7,# |,r,7,
+ 12  L,. |*# . |*-,+,. L,J,r,+,J,|,
+ 13  # r,|*. r*j*. L,J,# r,J,L,-,J,
+ 14  . L,l*-*j*J,L,. -,-,J,# . # . 
+
+===== CAS graine=5 niveau=20 geste=663 =====
+  X = coude (12,12) a convertir en croix
+  A = tete avant (11,7)   B = tete apres (12,14)
+  longueur du flux : 58 -> 60   segment reparcouru a l'envers : 5 cases
+  objectif restant : 38
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  # r,-,-,-,-,-,. . . . . . 7,. 
+  1  r*+*7*-,-,-,. . . . . . . J,# 
+  2  |*r*j*. 7,# r,. . . . . # . 7,
+  3  +*|*J,# L,. J,r,. . . . . . |,
+  4  |*|*. . . . r,J,. . . # |,. J,
+  5  |*l*o*7,# L,. . . . . . . |,# 
+  6  +*r,r*7*. # . . . . . J,. +,7,
+  7  +*L,|*|*# r,. . . . . A . L,. 
+  8  l*-*j*|*r,. . . . . . | # . . 
+  9  r*+*-*+*7*# L,. J,# . L 7 . . 
+ 10  +*. r*j*l*7 # r 7 # . . | . J,
+ 11  l*-*j*# . L + J L 7 r 7 | # . 
+ 12  L,-,. . . # L,. r J + L X 7,# 
+ 13  # # . . . -,. . L - J # r,+,7,
+ 14  . . L,. J,# L,. J,# L,-,B L,J,
+
+===== CAS graine=5 niveau=20 geste=1093 =====
+  X = coude (11,8) a convertir en croix
+  A = tete avant (13,9)   B = tete apres (12,8)
+  longueur du flux : 91 -> 91   segment reparcouru a l'envers : 6 cases
+  objectif restant : 11
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r,-,. r*+*-*-*-*-*7*# # . # . 
+  1  |,. 7,|*r*7*-,r*-*j*r*7*# # . 
+  2  |,L,+,l*j*|*. l*7*r*j*|*# r,7,
+  3  L,. J,# L,+*r*-*j*+*# l*+*7*J,
+  4  # # # r,. |*l*-*-*j*# r + J # 
+  5  r,-,. J,. |*# r,. . r + + - 7 
+  6  L,-,-,. J,|*# L,. r J L + + J 
+  7  . -,. . . l*+*7*. + . -,-,-,7,
+  8  |,. . . o*+*7*|*# L - X B J,|,
+  9  L,. -,. 7,# |*+*r*+*-*+*7*A J,
+ 10  # |,# . J,. +*|*l*7*# L,+*. 7,
+ 11  r,J,r,J,. J,|*l*+*j*r*+*j*. J,
+ 12  |,r,+,. J,. l*-*-*7*+*r,. -,7,
+ 13  |,|,L,7,# L,7,# L,+*+*J,r,7,|,
+ 14  L,J,# L,-,. J,. # l*j*. J,L,J,
+
+===== CAS graine=7 niveau=20 geste=164 =====
+  X = coude (4,1) a convertir en croix
+  A = tete avant (1,4)   B = tete apres (1,3)
+  longueur du flux : 80 -> 81   segment reparcouru a l'envers : 5 cases
+  objectif restant : 5
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  . # r,7,. -,r*7*. r*-*+*-*7*7,
+  1  . # |,L,X + j*l*7*l*7*7,# l*7*
+  2  # r,J,# + r*-*-*j*. l*+*+*7*|*
+  3  r,B # r,J +*r*-*7*. -,. . +*|*
+  4  |,A +,J,r*j*|*+,|*# # r*+*j*|*
+  5  |,L,7,# l*-*j*L,l*+*-*j*r*-*j*
+  6  L,. . . . -,-,. r*+*-*+*j*# # 
+  7  . -,. +,. 7,# . |*r*-*7*. -,7,
+  8  L,-,. . # L,-,+,|*l*o*|*r,. J,
+  9  r,-,-,-,. 7,# L,l*-*7*l*7*r,7,
+ 10  |,r,-,-,. +,7,# r,. |*. l*7*J,
+ 11  |,L,7,# . J,L,. . # +*r*-*j*# 
+ 12  L,. J,r,+,7,# r,7,# l*j*7,# . 
+ 13  r,-,. J,L,J,r,+,. r,7,r,J,# # 
+ 14  L,-,-,-,. -,J,L,-,J,L,J,# . . 
+
+===== CAS graine=7 niveau=20 geste=1985 =====
+  X = coude (11,9) a convertir en croix
+  A = tete avant (7,8)   B = tete apres (13,12)
+  longueur du flux : 46 -> 46   segment reparcouru a l'envers : 6 cases
+  objectif restant : 76
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r,. r*-*+*7*. . . . . . . -,7,
+  1  L,. l*7*. l*7*. . . . . . . J,
+  2  # # . |*# r*j*# . . . # . # . 
+  3  . r*+*j*r*j*r - + 7 . 7,# r,. 
+  4  r*j*# # L 7 | # . + . . . . . 
+  5  l*7*r,7,. L J . . + . . . . . 
+  6  . |*. . . . . . . | . . # . 7,
+  7  . |*. . +,. # . . L 7 r,. . . 
+  8  . |*7,# . . # A -,7,| . . +,. 
+  9  . o*. 7,. . . . . + L X -,+,7,
+ 10  . . . . . . . J,# L - J -,. |,
+ 11  r,. . . . . # # r,. r,. -,7,|,
+ 12  . . 7,# . . 7,# . r,+,. 7,B J,
+ 13  r,. . . . +,J,# L,. . 7,. 7,# 
+ 14  L,. . . . J,# . . # # . . J,. 
+
+===== CAS graine=7 niveau=20 geste=2221 =====
+  X = coude (7,2) a convertir en croix
+  A = tete avant (10,2)   B = tete apres (8,3)
+  longueur du flux : 61 -> 61   segment reparcouru a l'envers : 6 cases
+  objectif restant : 65
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  # r,r*7*# r,. -,-,-,7,# r,. 7,
+  1  r*7*+*+*. |,r,|,-,-,+,7,|,r,J,
+  2  |*l*j*+*# . r X 7,# A +,+,+,7,
+  3  +*r - J r - J . B r,. . . . . 
+  4  |*L + + J -,. . . +,7,# . +,. 
+  5  +*# . . # . . . . +,+,-,. +,7,
+  6  l*-*7*. . . . 7,. . . # r,. |,
+  7  . . |*. -,-,. . . # . . . r,. 
+  8  # . +*. -,-,7,# . -,. r,. +,7,
+  9  r*7*|*# # . +,7,o*-*7*. r,J,|,
+ 10  |*l*j*# r,. . . # # +*. J,r,J,
+ 11  |*# |,# . . . -,r*7*l*7*. +,7,
+ 12  |*-,+,7,L,. r*+*j*l*+*j*. J,|,
+ 13  |*# L,. # . +*7,# L,7,# r,7,|,
+ 14  l*-*-*+*-*+*j*. . # L,. J,L,J,
+
+===== CAS graine=7 niveau=20 geste=2224 =====
+  X = coude (6,2) a convertir en croix
+  A = tete avant (10,3)   B = tete apres (11,3)
+  longueur du flux : 61 -> 66   segment reparcouru a l'envers : 8 cases
+  objectif restant : 60
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  # r,r*7*# r,. -,-,-,7,# r,. 7,
+  1  r*7*+*+*. |,r,+ -,-,+,7,|,r,J,
+  2  |*l*j*+*# . X J 7,# |,+,+,+,7,
+  3  +*r - j*r - J . . r,A B . . . 
+  4  |*L + + J -,. . . +,7,# . +,. 
+  5  +*# . 7,# . . . . +,+,-,. +,7,
+  6  l*-*7*. . . . 7,. . . # r,. |,
+  7  . . |*. -,-,. . . # . . . r,. 
+  8  # . +*. -,-,7,# . -,. r,. +,7,
+  9  r*7*|*# # . +,7,o*-*7*. r,J,|,
+ 10  |*l*j*# r,. . . # # +*. J,r,J,
+ 11  |*# |,# . . . -,r*7*l*7*. +,7,
+ 12  |*-,+,7,L,. r*+*j*l*+*j*. J,|,
+ 13  |*# L,. # . +*7,# L,7,# r,7,|,
+ 14  l*-*-*+*-*+*j*. . # L,. J,L,J,
+
+===== CAS graine=7 niveau=20 geste=2688 =====
+  X = coude (14,8) a convertir en croix
+  A = tete avant (8,8)   B = tete apres (12,12)
+  longueur du flux : 82 -> 82   segment reparcouru a l'envers : 5 cases
+  objectif restant : 44
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  # r,r*7*# r,-,r*-*-*7 # r,. 7,
+  1  r*7*+*+*. |,r,+*-,-,+ 7,|,r,J,
+  2  |*l*j*+*# |,r*j*7,# | +,+,+,7,
+  3  +*r*-*j*r*-*j*. . r,| . |,|,|,
+  4  |*l*+*+*j*-,. . . +,+ # L,+,. 
+  5  +*# . 7,# . . . . +,+ -,. +,7,
+  6  l*-*7*L,. . . 7,|,L,+ # r,. |,
+  7  L,-,|*. -,-,. L,. # L + - - 7 
+  8  # . +*. -,-,7,# A -,- - + + X 
+  9  r*7*|*# # . +,7,o*-*7*. r,J,|,
+ 10  |*l*j*# r,. L,. # # +*. J,r,J,
+ 11  |*# |,# |,. . -,r*7*l*7*. +,7,
+ 12  |*-,+,7,L,. r*+*j*l*+*j*B J,|,
+ 13  |*# L,. # r,+*7,# L,7,# r,7,|,
+ 14  l*-*-*+*-*+*j*. . # L,. J,L,J,
+
+===== CAS graine=8 niveau=20 geste=846 =====
+  X = coude (11,0) a convertir en croix
+  A = tete avant (11,4)   B = tete apres (12,1)
+  longueur du flux : 93 -> 94   segment reparcouru a l'envers : 5 cases
+  objectif restant : 8
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  . r*7*# r,. -,r 7 # r X -,-,7,
+  1  . l*+*7*r - - J L + J + B -,J,
+  2  # r*j*|*+ J,# |,r*7*r J . . 7,
+  3  r,+*. o*| r*+*-*+*j*| . +,. . 
+  4  . |*r - J |*. . l*7*-,A . . 7,
+  5  # l*+*+*7*l*7*. . l*7*. -,7,|,
+  6  . # |*# l*7*l*7*# . |*7,# L,J,
+  7  r*-*j*# . |*. +*. -,|*. 7,# . 
+  8  |*# # # . |*. |*7,# |*. J,. 7,
+  9  |*. -,7,# l*-*+*-*-*j*7,. J,|,
+ 10  |*-,. r*-*-*-*j*-,J,# |,|,# |,
+ 11  |*-,. |*J,r,. . . -,-,+,J,# |,
+ 12  l*7*-,+*. +,. +,. 7,r,J,# r,J,
+ 13  r*j*# |*7,|,# |,# L,+,-,7,L,7,
+ 14  l*-*+*j*L,J,. L,-,-,J,# L,-,J,
+
+===== CAS graine=9 niveau=20 geste=287 =====
+  X = coude (13,2) a convertir en croix
+  A = tete avant (10,1)   B = tete apres (12,2)
+  longueur du flux : 38 -> 38   segment reparcouru a l'envers : 5 cases
+  objectif restant : 52
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  # r,-,-,-,. . . -,. r,-,-,7,. 
+  1  . . . . . . . . # . A . +,J,# 
+  2  # . +,J,# . . . 7,# . . B X 7 
+  3  r,J,|,# r,J,. . . . . # . . + 
+  4  . . J,. . . . . . . . . . . | 
+  5  . . . . . . . . . # L,. . r J 
+  6  . . . . . . . . . # # . . L 7 
+  7  . . . . . . . . . -,. . . . | 
+  8  . . # . . . . . . # . . . . + 
+  9  r,. # . . . . . . # o*. . # | 
+ 10  |,r,+,. # . . # . . |*. . . | 
+ 11  |,. # . . . . +,. . +*r 7 +,| 
+ 12  . . r,-,. . # r*+*-*j*| L - J 
+ 13  . # . r,. r*-*j*# r,. L 7 . . 
+ 14  # . . J,# l*-*+*+*+*+*+ J . J,
+
+===== CAS graine=9 niveau=20 geste=562 =====
+  X = coude (2,4) a convertir en croix
+  A = tete avant (6,2)   B = tete apres (6,0)
+  longueur du flux : 102 -> 108   segment reparcouru a l'envers : 5 cases
+  objectif restant : 0
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  # r,-,-,-,-,B -,-,7,r*-*-*7*. 
+  1  . L,7,r,. -,-,7,# L,|*L,+,|*# 
+  2  # r,+,J,# r,A +,7,# +*. +,l*7*
+  3  r,J,|,# r,J,r,. L,. |*# L,. +*
+  4  L,. X + - J,J,r*+*-*j*r,. -,|*
+  5  r,. | J,r 7 r,|*7,# L,J,r,r*j*
+  6  L,. L - J | r*j*. # # r,J,l*7*
+  7  r - - 7 . + l*7*. -,. J,r,+,|*
+  8  L 7*# L + J r*+*7*# r,. J,L,+*
+  9  r*j*# r*+*7*l*j*+*# o*. 7,# |*
+ 10  |*r,+,+*# +*7,# |*. |*. J,r,|*
+ 11  |*|,# |*. l*+*+*j*+,+*r*7*+,|*
+ 12  l*+*+*j*. 7,# r*+*-*j*|*l*-*j*
+ 13  . # |,r,. r*-*j*# r,7,l*7*L,7,
+ 14  # . L,J,# l*-*+*+*+*+*+*j*-,J,
+
+===== CAS graine=9 niveau=20 geste=567 =====
+  X = coude (5,4) a convertir en croix
+  A = tete avant (8,6)   B = tete apres (4,1)
+  longueur du flux : 109 -> 109   segment reparcouru a l'envers : 8 cases
+  objectif restant : 0
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  # r,-,-,-,-,. -,-,7,r*-*-*7*. 
+  1  . L,7,r,B -,-,7,# L,|*L,+,|*# 
+  2  # r,+,J,# r - + 7 # +*. +,l*7*
+  3  r,J,|,# r,| r,J,| . |*# L,. +*
+  4  L,. r + - X J,r*+*-*j*r,. -,|*
+  5  r,. | J,r 7 r,|*7,# L,J,r,r*j*
+  6  L,. L - J | r*j*A # # r,J,l*7*
+  7  r*-*- 7 . + l*7*. -,. J,r,+,|*
+  8  l*7*# L + J r*+*7*# r,. J,L,+*
+  9  r*j*# r*+*7*l*j*+*# o*. 7,# |*
+ 10  |*r,+,+*# +*7,# |*. |*. J,r,|*
+ 11  |*|,# |*. l*+*+*j*+,+*r*7*+,|*
+ 12  l*+*+*j*. 7,# r*+*-*j*|*l*-*j*
+ 13  . # |,r,. r*-*j*# r,7,l*7*L,7,
+ 14  # . L,J,# l*-*+*+*+*+*+*j*-,J,
+
+===== CAS graine=9 niveau=20 geste=742 =====
+  X = coude (9,0) a convertir en croix
+  A = tete avant (5,1)   B = tete apres (13,1)
+  longueur du flux : 85 -> 86   segment reparcouru a l'envers : 6 cases
+  objectif restant : 8
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  . r,. 7,. . . -,r X -,-,-,-,7,
+  1  r,J,r,. # A . . | | r,7,r,B J,
+  2  |,r,. . . |,- + + J . J,. . 7,
+  3  |,|,L,J,# . . . | # L,. 7,r,J,
+  4  |,|,. # . . r + J . # # |,. 7,
+  5  . . # r,. # | . # # # r,. r,. 
+  6  r*-*7*+,. . L - + 7 . . . +,7,
+  7  |*# +*L,. . . . . | . +,+,+,J,
+  8  l*7*+*r*-*-*+*-*+*+*+*-*+*7*# 
+  9  r*j*l*j*. J,. # . + # L,r*j*# 
+ 10  +*|,|,r,7,r - -*7*L 7 # +*# . 
+ 11  l*+*+*+*7*L - - +*- J . l*7*# 
+ 12  |,|,# |,l*-*-*-*+*o*7,# . +*7,
+ 13  |,|,# L,. 7,# |,l*7*L,-,. l*7*
+ 14  L,J,. # L,J,. L,. l*+*-*+*-*j*
+
+===== CAS graine=9 niveau=20 geste=1743 =====
+  X = coude (4,6) a convertir en croix
+  A = tete avant (1,2)   B = tete apres (7,5)
+  longueur du flux : 101 -> 101   segment reparcouru a l'envers : 6 cases
+  objectif restant : 13
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  . # r,7,# r,. 7,# r,r*+*7*-,7,
+  1  r,. J,L,. J,r,J,r,J,l*7*|*-,J,
+  2  L,A 7,# r,7,|,# L,7,# |*l*7*7,
+  3  . # |,r*+*+*-*-*+*+*-*j*-,|*J,
+  4  r,-,J,+*# # L,-,. J,L,r*-*j*7,
+  5  |,# +,o*r,-,-,B -,-,-,+*r,r*7*
+  6  L,+,L - X . 7,# r,. -,l*-*j*|*
+  7  r - 7 . + J,|,. +,7,# r*7*# +*
+  8  | r,L 7 | # |,L,r*7*# l*+*-*j*
+  9  | L,. L J # |,. +*l*+*7*l*7*|,
+ 10  L - - 7 # r,J,L,|*# L,l*+*j*J,
+ 11  r - - J 7,L,. -,l*-*+*7*J,# # 
+ 12  | . 7,# L,-,. -,r*7*r,+*# . . 
+ 13  + r +*7*# r*7*. |*|*r*j*# . . 
+ 14  L J J,l*-*j*l*-*j*l*j*J,. . . 
+
+===== CAS graine=12 niveau=20 geste=864 =====
+  X = coude (5,1) a convertir en croix
+  A = tete avant (2,2)   B = tete apres (8,0)
+  longueur du flux : 90 -> 92   segment reparcouru a l'envers : 5 cases
+  objectif restant : 10
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r,. 7,# r,-,-,-,B r + - + - 7 
+  1  |,r,J,# L,X 7 # r*J r 7 # r J 
+  2  |,L,A 7,# + + r*j*r J + # L 7 
+  3  |,r,. J,-,J,+ l*-*+*7*L 7 r J 
+  4  L,+,. . J,. L - - J +*L,L J 7,
+  5  # |,. . . J,. . r*7*l*7*# L,J,
+  6  . L,J,# . . J,L,+*+*# +*. # . 
+  7  . # . -,J,r*-*-*j*+*r*j*. . # 
+  8  # . |,r*-*j*. # L,+*|*# # # # 
+  9  . # L,|*r*+*-*7*. l*j*. -,-,7,
+ 10  r,7,# l*j*-,. |*. -,. . . . J,
+ 11  |,|,r,. r*+*+*j*. . . . . . 7,
+ 12  |,L,r*+*j*# r*7*. . . . . . J,
+ 13  |,# |*# |,. o*l*7*. . . . . 7,
+ 14  L,. l*+*+*+*-*+*j*-,. . . -,J,
+
+===== CAS graine=12 niveau=20 geste=1107 =====
+  X = coude (12,1) a convertir en croix
+  A = tete avant (11,2)   B = tete apres (6,2)
+  longueur du flux : 114 -> 119   segment reparcouru a l'envers : 9 cases
+  objectif restant : 0
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r,-,-,r*+*-*-*7*# r,7,r,-,7,# 
+  1  L,-,r*j*# L,+,|*r,J,L,+,X + 7 
+  2  r,r*j*J,. . B +*J,r,. A | J,| 
+  3  |,o*-,. J,. J,|*. J,# |,L J | 
+  4  L,J,. # # |,# +*7,# # L,r 7 + 
+  5  . # # . r,J,# l*7*. . # | L J 
+  6  r,-,7,# L,-,. +,|*# r,r + - 7 
+  7  |,r,J,r*-*7*. J,|*r - J L + J 
+  8  |,. r*+*7*+*r*-*+*+*-*-*-*7*# 
+  9  |,r*j*l*j*+*l*+*j*L - 7 # +*7,
+ 10  |,l*7*# r*j*r*+*-*7*. + 7,l*7*
+ 11  L,r*j*# l*-*j*+,. +*# | L,. +*
+ 12  r,+*-,7,# r,-,J,. L 7 + r*+*j*
+ 13  |,|*7,L,-,+,7,# |,# L J +*L,J,
+ 14  L,l*+*-*-*-*-*-*-*+*+*+*j*# . 
+
+===== CAS graine=12 niveau=20 geste=1264 =====
+  X = coude (6,9) a convertir en croix
+  A = tete avant (8,13)   B = tete apres (5,10)
+  longueur du flux : 93 -> 93   segment reparcouru a l'envers : 5 cases
+  objectif restant : 17
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  # r,-,. . . . . -,-,r*7*r*+*7*
+  1  r,. . . . . . r*-*-*+*+*j*7,|*
+  2  L,J,# r,7,# . l*7*. +*| . r*j*
+  3  r,. . J,L,. o*. l*7*l*+*7*|*# 
+  4  r*7*. . . r*+*-*-*j*r J l*j*. 
+  5  |*l*+*+*+*j*l*-*+*-*+*7*. J,# 
+  6  l*-*-*7*7,# r*-*-*+*+*j*. 7,# 
+  7  r,7,# l*-*+*j*r,r - J # . . 7,
+  8  |,L,. . J,# # L,L + - - 7 L,J,
+  9  |,# . . # r,X + - + + - + 7 # 
+ 10  |,. J,. . B |,. 7,. . . | + # 
+ 11  L,J,. +,7,L,7,# L,. . . L + 7 
+ 12  # # L,J,|,# L,7,# . . 7,# L J 
+ 13  r,. . . +,+,7,L,A . J,|,# L,7,
+ 14  L,. . . J,# L,. . J,# L,-,. J,
+
+===== CAS graine=12 niveau=20 geste=1467 =====
+  X = coude (2,6) a convertir en croix
+  A = tete avant (2,10)   B = tete apres (1,4)
+  longueur du flux : 88 -> 88   segment reparcouru a l'envers : 7 cases
+  objectif restant : 26
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r,. +,7,r,-,. . -,7,# r,7,# . 
+  1  L,7,# L,+,. . . . J,# |,. +,7,
+  2  r,J,r - +*7*r*7*r*-*-*+*o*. J,
+  3  L,. | r 7 l*+*j*l*7*. -,J,# # 
+  4  r,B L J | # l*+*7*l*7*. -,-,7,
+  5  |,r 7 # + 7,# . +*. +*. . -,J,
+  6  L,+ X 7 + . r,. |*. +*. . -,7,
+  7  # |,. L J . +,. l*7*+*r,. -,J,
+  8  r,7,# # . # r*7*. +*l*7*. -,7,
+  9  |,|,r,7,# r*j*l*7*+*# +*. -,J,
+ 10  |,L,A L,. |*r*-*j*|*# +*7,r,7,
+ 11  |,# r,r*-*j*|*# r*j*. |*L,J,|,
+ 12  L,+,. |*-,. l*-*j*# r,|*# r,J,
+ 13  r,r*+*j*7,r,7,# . # L,|*. J,# 
+ 14  L,l*+*-*+*-*-*+*+*-*-*j*# . . 
+
+===== CAS graine=13 niveau=20 geste=461 =====
+  X = coude (13,4) a convertir en croix
+  A = tete avant (11,6)   B = tete apres (9,1)
+  longueur du flux : 83 -> 86   segment reparcouru a l'envers : 5 cases
+  objectif restant : 8
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r,. -,-,. 7,# r,. -,-,-,7,# . 
+  1  L,7,# . . J,r,. . B -,-,+,7,# 
+  2  . J,. L,. . r*+*7*. . # |,L,7,
+  3  |,# # r*+*-*j*# +*-,J,r,J,# |,
+  4  r*+*+*j*. . J,# |*r - - - X J,
+  5  +*L,. # |,. o*7*|*| . J,L,+ . 
+  6  |*. . . . J,# l*j*+ . A . | |,
+  7  l*-*+*7*|,# r,. . | . L - J J,
+  8  |,# r,l*7*# L,. . + . . . 7,# 
+  9  L,r*7*# l*7*. . . | . . . . 7,
+ 10  . l*+*+*-*j*. . . + . . # L,J,
+ 11  r*7*|*. # r 7 r - + 7 # . # . 
+ 12  +*l*j*. r*j*| + r J + . 7,# . 
+ 13  |*r*+*+*j*# L J L + J . L,7,# 
+ 14  l*j*L,. . . L,+,. . . . -,J,. 
+
+===== CAS graine=13 niveau=20 geste=949 =====
+  X = coude (10,1) a convertir en croix
+  A = tete avant (12,2)   B = tete apres (8,0)
+  longueur du flux : 41 -> 41   segment reparcouru a l'envers : 6 cases
+  objectif restant : 65
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  . . -,-,. . . . B -,7,# r,7,# 
+  1  . J,. -,. . . # . . X - + L,7,
+  2  |,. . . L,-,. . . . | -,A . . 
+  3  |,|,. . . # |,. . . + -,. . . 
+  4  |,|,L,-,. . . . . . + . . . . 
+  5  |,|,. # . # . . . # L - 7 . . 
+  6  . . # r,. . . . . . . . + . # 
+  7  . . . . . . . . # # # . + . 7,
+  8  . # . . # r*-*-*+*+*7*. + . . 
+  9  . . . . -,|*. . . # +*. | . . 
+ 10  . # L,. . l*7*# . . +*. | . . 
+ 11  . . # . . . l*+*7*r J . | . . 
+ 12  # . r,. . L,J,# |*L + - J L,J,
+ 13  r,-,J,. . . # . +*|,r*o*# . # 
+ 14  L,-,-,. L,J,. # l*-*j*. . . . 
+
+===== CAS graine=13 niveau=20 geste=1245 =====
+  X = coude (11,10) a convertir en croix
+  A = tete avant (12,6)   B = tete apres (10,11)
+  longueur du flux : 104 -> 104   segment reparcouru a l'envers : 10 cases
+  objectif restant : 6
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  # r,-,-,-,. -,7,# r*+*7*r*+*7*
+  1  r,J,r - - 7 r*+*7*|*r,l*+*+*j*
+  2  |,# L 7 # | +*. +*+*J,# |*# |,
+  3  L,-,. | r,+ |*. |*|*# r*j*r,J,
+  4  r,. r*+ + J |*# l*+*7*|*r,+,7,
+  5  |,r*j*+ # L,+*. J,l*j*|*J,L,J,
+  6  |,|*# L 7 r*+*7*# L,. o*A +,7,
+  7  L,|*# r,| l*j*|*# r,. -,7,# |,
+  8  r*j*. J,L - 7 l*-*-*+*7*J,r,J,
+  9  |*r,. . J,r,L 7 . . J,l*+*+*7*
+ 10  l*+*+*7*. J,. L - + + X r,J,|*
+ 11  # |,# l*7*. +,7,# r,B -,J,r*j*
+ 12  r,+,7,# l*+*-*+*-*-*-*+*-*j*7,
+ 13  L,J,|,r,+,. . . J,|,# . # L,J,
+ 14  . # L,J,L,. . . -,J,. # # # . 
+
+===== CAS graine=14 niveau=20 geste=517 =====
+  X = coude (12,14) a convertir en croix
+  A = tete avant (11,11)   B = tete apres (14,10)
+  longueur du flux : 68 -> 68   segment reparcouru a l'envers : 5 cases
+  objectif restant : 26
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  . r,. . -,7,r,. r*-*+*7*. . . 
+  1  # L,. . # . r*-*j*. r*+*-*7*|,
+  2  r,. . . r,. |*r*-*-*j*l*7*|*. 
+  3  L,7,# r,. r J +*. . . . l*j*# 
+  4  # . . r - J . +*. . . . -,. . 
+  5  r,r - J o*7*. |*# |,. . # . . 
+  6  . L 7 . . |*|,+*# . . . . . . 
+  7  . . | . . l*+*j*. . . . # . J,
+  8  |,# | . . . . 7,# # . . . . # 
+  9  L,. + . . . r 7 . . . . . . 7,
+ 10  . # | . r + J | L,. . # . . B 
+ 11  . . L - J # . L 7 L,r A J,# |,
+ 12  |,. . # . # +,# L 7 L - 7 . |,
+ 13  |,L,. . # r,. 7,# + . . + # |,
+ 14  L,. J,# . L,. . . L - - X -,J,
+
+===== CAS graine=14 niveau=20 geste=1472 =====
+  X = coude (12,1) a convertir en croix
+  A = tete avant (14,3)   B = tete apres (13,1)
+  longueur du flux : 66 -> 66   segment reparcouru a l'envers : 5 cases
+  objectif restant : 48
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r*-*7*# r,r - + 7 r + 7 -,-,7,
+  1  |*# l*+*7*| # L,+ + . L X B +,
+  2  l*7*7,# l*j*r,. L J . . . . 7,
+  3  # l*7*r*-*7*. . . . . . r,. A 
+  4  r,J,l*j*r*j*# L,. . # |,. . 7,
+  5  L,. . # l*7*-,. . 7,# L,. . . 
+  6  . -,. r*+*j*# . . J,. o*7*. 7,
+  7  |,. . l*-*7*# r*7*. . L,|*. J,
+  8  |,L,. 7,# l*-*j*|*. . . l*7*7,
+  9  |,# r,J,. . |,# l*-*-*7*. +*J,
+ 10  |,r,J,r,J,. . r,+,7,# +*r*j*# 
+ 11  L,+,. J,r,J,# L,. |,r,+*|*. 7,
+ 12  r,+,-,. +,. 7,r,7,L,+,|*|*. J,
+ 13  L,+,-,. J,# L,+,J,# L,l*j*# . 
+ 14  # L,-,-,. -,. J,# . . # # . . 
+
+===== CAS graine=17 niveau=20 geste=306 =====
+  X = coude (10,1) a convertir en croix
+  A = tete avant (5,2)   B = tete apres (14,1)
+  longueur du flux : 77 -> 77   segment reparcouru a l'envers : 5 cases
+  objectif restant : 13
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r,-,-,-,-,-,. 7,# # r,7,# . # 
+  1  |,r,-,-,. . . . r + X L,+,-,B 
+  2  |,L,-,. . A + + J L,+ r*-*-*7*
+  3  L,-,. . . . . . . r + +*- 7 |*
+  4  r,. . . . . . . . L J +*. |*|*
+  5  |,r,. . . . r,. . r*-*j*# |*|*
+  6  |,L,. . . +,. . # |*# r*-*j*|*
+  7  |,r,-,. . . # # r,l*-*j*# # |*
+  8  L,+,. r*-*+*+*-*7*# r,. r*-*j*
+  9  # |,r,|*-,. . . l*+*-*7*+*# # 
+ 10  r*-*-*j*7,# r,. . r*+*j*|*r,7,
+ 11  |*-,+,. J,r,. r,. |*. # +*. |,
+ 12  +*o*7*-,. . # |,L,|*+,r*j*# |,
+ 13  l*7*|*. 7,r,7,|,# l*+*j*# r,J,
+ 14  L,l*j*# L,J,L,J,. # L,. -,J,# 
+
+===== CAS graine=18 niveau=20 geste=1498 =====
+  X = coude (12,5) a convertir en croix
+  A = tete avant (11,2)   B = tete apres (13,4)
+  longueur du flux : 102 -> 105   segment reparcouru a l'envers : 7 cases
+  objectif restant : 5
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  . r*7*. r*7*# r,. 7,# # . # . 
+  1  # |*l*+*+*j*# |,r,J,r,7,r,7,. 
+  2  r*+*7*o*j*# r,. . . J,A +,J,# 
+  3  +*l*j*# . . . r,. -,-,-,+,7,# 
+  4  l*-*7*# r,-,. . . # . . J,B 7,
+  5  L,r*j*. . . . -,. . . r X -,J,
+  6  # +*. . 7,# L,. . . . L - - 7 
+  7  r,|*# r*+*-*7*# . . . r - + J 
+  8  r*j*. l*-*7*l*7*. r + + + + 7 
+  9  l*-*-*+*7*|*# l*7*| . L + - J 
+ 10  |,# r*-*j*l*+*7*l*+*-*+ - - 7 
+ 11  |,r,l*-*+*7*. |*# | # . . -,+ 
+ 12  |,. 7,# L,|*r,l*7*L - - - - J 
+ 13  |,r,+,7,# l*+*7*|*. +,. -,-,7,
+ 14  L,J,. J,# . # l*j*J,. . -,-,J,
+
+===== CAS graine=18 niveau=20 geste=1502 =====
+  X = coude (12,4) a convertir en croix
+  A = tete avant (13,4)   B = tete apres (11,2)
+  longueur du flux : 105 -> 109   segment reparcouru a l'envers : 6 cases
+  objectif restant : 1
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  . r*7*. r*7*# r,. 7,# # . # . 
+  1  # |*l*+*+*j*# |,r,J,r,7,r,7,. 
+  2  r*+*7*o*j*# r,. . . J,B +,J,# 
+  3  +*l*j*# . . . r,. -,-,-,+,7,# 
+  4  l*-*7*# r,-,. . . # L - X A 7,
+  5  L,r*j*. J,. . -,. . . r J -,J,
+  6  # +*. . 7,# L,. . . . L - - 7 
+  7  r,|*# r*+*-*7*# . . . r - + J 
+  8  r*j*. l*-*7*l*7*. r + + + + 7 
+  9  l*-*-*+*7*|*# l*7*| . L + - J 
+ 10  |,# r*-*j*l*+*7*l*+*-*+*-*- 7 
+ 11  |,r,l*-*+*7*. |*# | # . . -,+ 
+ 12  |,. 7,# L,|*r,l*7*L - - - - J 
+ 13  |,r,+,7,# l*+*7*|*. +,. -,-,7,
+ 14  L,J,. J,# . # l*j*J,. . -,-,J,
+
+===== CAS graine=20 niveau=20 geste=556 =====
+  X = coude (2,6) a convertir en croix
+  A = tete avant (2,3)   B = tete apres (2,1)
+  longueur du flux : 92 -> 92   segment reparcouru a l'envers : 8 cases
+  objectif restant : 2
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  . # . # r,7,r,-,-,. . -,-,-,7,
+  1  r,-,B . J,L,r*-*7*. . . . -,J,
+  2  |,r,. . . . |*. +*. . 7,# r,7,
+  3  |,L,A 7,# r,|*r,+*. . J,r,J,|,
+  4  |,# r,J,r*-*j*r +*7 r,. J,# |,
+  5  |,r,J,# l*o*r J +*L 7 # # r,J,
+  6  L,+,X - - - J r*j*# + 7,# L,7,
+  7  # L,J,7,# # . |*L,-,| L,. . J,
+  8  r*-*-*7*r*+*-*j*7,# + . 7,# . 
+  9  |*r*7*l*j*7,# r*-*-*j*# L,. 7,
+ 10  |*+*|*r*7*L,. |*. J,r,. . -,J,
+ 11  |*|*l*+*j*r*-*+*+*7*+,. -,7,# 
+ 12  l*j*. +*. +*. +*r*j*L,. -,+,7,
+ 13  L,7,# |*7,l*+*j*|*|,# # r,+,J,
+ 14  . L,. l*+*-*-*-*j*J,. # L,J,# 
+
+===== CAS graine=20 niveau=20 geste=719 =====
+  X = coude (11,12) a convertir en croix
+  A = tete avant (12,8)   B = tete apres (13,13)
+  longueur du flux : 104 -> 104   segment reparcouru a l'envers : 6 cases
+  objectif restant : 0
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r,r*-*+*7*. -,. 7,# . . -,-,7,
+  1  L,+*J,# l*-*7*. . . J,. . -,J,
+  2  r*j*# r*-*-*j*. -,. . J,. . 7,
+  3  |*. r*j*r,J,r*+*+*- + 7 J,# |,
+  4  |*. l*+*+*o*+*. . r - + 7 . J,
+  5  +*. # . . . +*. . L - J L + 7 
+  6  +*# r*+*+*+*j*# L,r 7 # r 7 | 
+  7  l*7*|*. . . -,. -,+ L + J L J 
+  8  r,|*l*-*7*. . . -,| -,. A J,. 
+  9  r*j*7,# +*# L,. 7,L - - + 7 # 
+ 10  l*-*7*. |*. . # |,L,-,-,J,L 7 
+ 11  # r*j*+,|*# # . . # + r - - J 
+ 12  . |*r*-*+*7*# L,7,# L X . . 7,
+ 13  # |*|*# |*+*7,# |,. 7,L,+,B J,
+ 14  # l*j*# l*j*J,. L,J,L,. J,# . 
+
+===== CAS graine=20 niveau=20 geste=919 =====
+  X = coude (12,0) a convertir en croix
+  A = tete avant (13,7)   B = tete apres (13,1)
+  longueur du flux : 81 -> 84   segment reparcouru a l'envers : 15 cases
+  objectif restant : 18
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  . . # . # r*7*r - - - - X -,7,
+  1  # . # r,r*j*+*L 7 -,7,# r,B J,
+  2  r*7*-,r*j*r +*+ J -,. . |,r,7,
+  3  |*+*# l*+ J |*. . . 7,# L,+,J,
+  4  l*+*-*7*r*-*j*. . . . 7,# L,7,
+  5  # +*# |*|*# L,. 7,# . +,7,r,J,
+  6  # +*. l*j*7,# . . . . |,|,L,7,
+  7  r*j*. . r*7*. . . . r,. L,A J,
+  8  |*r*-*7*+*l*7*. . . +,7,# r,7,
+  9  +*+*-,+*+*# |*. -,. L,+,-,J,|,
+ 10  +*l*-*+*j*-,+*. . -,-,+,7,# |,
+ 11  +*r*-*j*# . |*. r,. -,+,J,r,J,
+ 12  l*j*# r*+*7*|*. +,-,7,|,# L,7,
+ 13  L,+,-,|*o*l*j*# L,7,L,+,7,# |,
+ 14  # L,-,l*j*L,J,. # L,-,J,L,+,J,
+
+===== CAS graine=20 niveau=20 geste=923 =====
+  X = coude (13,7) a convertir en croix
+  A = tete avant (11,7)   B = tete apres (10,5)
+  longueur du flux : 97 -> 101   segment reparcouru a l'envers : 7 cases
+  objectif restant : 1
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  . . # . # r*7*r - - - - 7 -,7,
+  1  # . # r,r*j*+*L 7 -,7,# | . J,
+  2  r*7*-,r*j*r*+*+ J -,. . | r 7 
+  3  |*+*# l*+*j*|*J,. . 7,# L + J 
+  4  l*+*-*7*r*-*j*. . . . 7,# L 7 
+  5  # +*# |*|*# L,. 7,# B +,7,r J 
+  6  # +*. l*j*7,# . . . . |,|,L 7 
+  7  r*j*. . r*7*. . . . r,A L,X J 
+  8  |*r*-*7*+*l*7*. . . +,7,# r,7,
+  9  +*+*-,+*+*# |*. -,. L,+,-,J,|,
+ 10  +*l*-*+*j*-,+*. . -,-,+,7,# |,
+ 11  +*r*-*j*# . |*J,r,. -,+,J,r,J,
+ 12  l*j*# r*+*7*|*. +,-,7,|,# L,7,
+ 13  L,+,-,|*o*l*j*# L,7,L,+,7,# |,
+ 14  # L,-,l*j*L,J,. # L,-,J,L,+,J,
+
+===== CAS graine=20 niveau=20 geste=1465 =====
+  X = coude (1,10) a convertir en croix
+  A = tete avant (2,5)   B = tete apres (3,12)
+  longueur du flux : 65 -> 69   segment reparcouru a l'envers : 9 cases
+  objectif restant : 45
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  . r*+*-*-*+*7*-,r*-*7*r*-*+*7*
+  1  # l*-*7*# . +*# |*# l*j*. . +*
+  2  # # # l*-*+*+*+*j*. . . . . |*
+  3  . . . # r +*j*. # . . . J,. |*
+  4  . . . # L 7 . . . . r*7*# L,|*
+  5  . # A -,7,| . . . . |*l*-*+*j*
+  6  . . J,r + J # . . . +*. . . 7,
+  7  |,r + + |,# o*-*-*7*|*L,+,. J,
+  8  |,| # + . . L,. . l*j*. +,. . 
+  9  L,+ r J . # . . . . r,. +,. J,
+ 10  r,X J # . . |,. . . J,# L,. . 
+ 11  |,# r,. J,L,+,. r,. -,-,-,. |,
+ 12  |,r,+,B . # |,. J,r,. -,-,+,J,
+ 13  |,|,L,7,|,. |,L,. L,. r,7,|,# 
+ 14  L,J,# L,J,# L,. J,# L,J,L,J,. 
+
+===== CAS graine=20 niveau=20 geste=1691 =====
+  X = coude (4,3) a convertir en croix
+  A = tete avant (3,4)   B = tete apres (3,3)
+  longueur du flux : 92 -> 92   segment reparcouru a l'envers : 5 cases
+  objectif restant : 26
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r 7 # r,r - 7 . . . . -,7,# . 
+  1  | | r - J . + . . . . . J,r,7,
+  2  | L J r,. . + . . . . . . J,|,
+  3  L 7 # B X - J . 7,r,. 7,# r,J,
+  4  r J r,A 7,L,7,# L,. r,. r,+,7,
+  5  + -,L,-,J,# L,7,# . . . . +,J,
+  6  | r + 7 # . # |,# L,. . L,J,# 
+  7  L J r*+*7*r*-*-*7*. . . 7,# # 
+  8  r*+*j*+ l*j*r*-*j*. . . . # . 
+  9  |*. . + . . |*# |,# . . -,-,7,
+ 10  +*. . | . . l*-*+*7*J,# r,. . 
+ 11  |*. r J # r*7*# r*j*o*-*7*r,7,
+ 12  |*L,| . r*j*l*-*j*. +,. |*. |,
+ 13  |*# L + J # # . r*+*-*7*|*. J,
+ 14  l*+*+*-*+*-*-*-*j*. # l*j*# . 
+
+===== CAS graine=20 niveau=20 geste=1719 =====
+  X = coude (11,2) a convertir en croix
+  A = tete avant (8,0)   B = tete apres (11,6)
+  longueur du flux : 110 -> 129   segment reparcouru a l'envers : 6 cases
+  objectif restant : 0
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r 7 # r,r - 7 . A -,-,-,7,# . 
+  1  | | r - J r + 7 . . . -,J,r,7,
+  2  |*L J r - J + L - - - X -,J,|,
+  3  l*7*# + r - J . 7,r,. 7,# r,J,
+  4  r*j*r J + L,7,# L,. r,. r,+,7,
+  5  +*-,L - J # L,7,# . . r,+,+,J,
+  6  |*r*+*7*# . # |,# L,. B L,J,# 
+  7  l*j*r*+*7*r*-*-*7*. . -,7,# # 
+  8  r*+*j*+*l*j*r*-*j*. -,-,. # . 
+  9  |*. . +*. . |*# |,# r,. -,-,7,
+ 10  +*-,. |*. . l*-*+*7*J,# r,. . 
+ 11  |*. r*j*# r*7*# r*j*o*-*7*r,7,
+ 12  |*L,|*+,r*j*l*-*j*r,+,. |*J,|,
+ 13  |*# l*+*j*# # r,r*+*-*7*|*. J,
+ 14  l*+*+*-*+*-*-*-*j*. # l*j*# . 
+
+===== CAS graine=20 niveau=20 geste=1737 =====
+  X = coude (10,6) a convertir en croix
+  A = tete avant (12,8)   B = tete apres (11,4)
+  longueur du flux : 137 -> 137   segment reparcouru a l'envers : 5 cases
+  objectif restant : 0
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r*7*# r,r*-*7 . . -,-,r 7 # . 
+  1  |*|*r*-*j*r + 7 . . . | L + 7 
+  2  |*l*j*r - J + L - - - J -,J,| 
+  3  l*7*# + r - J . 7,r,. 7,# r J 
+  4  r*j*r J + L,7,# L,. r,B r + 7 
+  5  +*-,L - J # L,7,# r,J,r + + J 
+  6  |*r*+*7*# . # |,# L,X J L J # 
+  7  l*j*r*+*7*r*-*-*7*. | -,7,# # 
+  8  r*+*j*+*l*j*r*-*j*. + -,A # . 
+  9  |*-,. +*. . |*# |,# L,J,-,-,7,
+ 10  +*-,. |*. . l*-*+*7*J,# r,. J,
+ 11  |*r,r*j*# r*7*# r*j*o*-*7*r,7,
+ 12  |*L,|*+,r*j*l*-*j*r,+,. |*J,|,
+ 13  |*# l*+*j*# # r,r*+*-*7*|*. J,
+ 14  l*+*+*-*+*-*-*-*j*J,# l*j*# . 
+
+===== CAS graine=20 niveau=20 geste=2457 =====
+  X = coude (14,10) a convertir en croix
+  A = tete avant (13,13)   B = tete apres (11,13)
+  longueur du flux : 81 -> 81   segment reparcouru a l'envers : 5 cases
+  objectif restant : 45
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r,-,. 7,# r,-,. 7,# r,. . . 7,
+  1  L,r*-*7*. J,. . J,. . . . . . 
+  2  # +*7,|*# . J,r*+*-*+*7*. . 7,
+  3  r*j*L,l*+*7*# |*# |,# |*. . |,
+  4  |*# . # L,l*-*j*# r*+*j*. # |,
+  5  +*# # r,. . . r*-*j*. . . . . 
+  6  |*. . +,. . . +*# r,. # . . . 
+  7  +*. . . # . 7,|*# r - - - + 7 
+  8  +*. . . . r*+*j*# L 7 # L,. | 
+  9  |*L,r*+*+*j*. # r,. | 7,# . | 
+ 10  +*. +*. r + + 7 . . | L,r - X 
+ 11  +*. L - J . . L 7 . + . L 7 |,
+ 12  |*. -,+,-,. . . | r J r,-,+,J,
+ 13  l*o*# . # . . . | | r,B . A . 
+ 14  L,J,. # . L,. . L J J,L,. . J,
+
+===== CAS graine=2 niveau=28 geste=193 =====
+  X = coude (9,4) a convertir en croix
+  A = tete avant (9,6)   B = tete apres (8,1)
+  longueur du flux : 120 -> 120   segment reparcouru a l'envers : 5 cases
+  objectif restant : 0
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  . . r,7,# r 7 r*-*-*-*-*7*. # 
+  1  # # |,|,r J |*|*B -,7,r,+*# . 
+  2  . # |,L,| r*+*j*. # |,L,+*-,7,
+  3  r + - + J l*j*# |,# |,r,l*7*J,
+  4  L + 7 r*-*7*# r + X J,L,. l*7*
+  5  r,-,L +*+ +*- J # L 7 -,-,-,+*
+  6  |,r*o*|*. l*7*# r,A | 7,# r,+*
+  7  L,l*-*j*. . |*. J,L,J +,+,J,|*
+  8  # r*7*r*-*+*j*. r*-*+*7*# r,+*
+  9  r*j*l*j*r,7,# r*j*-,r*j*# r*j*
+ 10  l*+*-*7*J,r*+*j*# r,+*J,r,|*J,
+ 11  r,-,. l*-*j*7,# r*-*j*# L,l*7*
+ 12  |,r,. J,# r,r*+*j*# |,r*-*7*+*
+ 13  |,L,-,. 7,L,l*7*r*+*+*j*-,|*+*
+ 14  L,-,-,. J,# L,l*j*J,# L,-,l*j*
+
+===== CAS graine=5 niveau=28 geste=370 =====
+  X = coude (4,8) a convertir en croix
+  A = tete avant (3,12)   B = tete apres (4,13)
+  longueur du flux : 90 -> 90   segment reparcouru a l'envers : 10 cases
+  objectif restant : 32
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  # r*-*7*# r*-*-*-*-*7*r*-*7*7,
+  1  r,l*7*+*-,|*. . 7,. l*+*-*j*J,
+  2  |,. |*l*7*+*L,. . . |,l*7*. 7,
+  3  L,r*j*L,|*|*. 7,L,. . r*j*+,. 
+  4  # |*# # l*j*r*-*-*-*-*+*7*. . 
+  5  r,l*7*r*+*-*j*. +,+,r*j*+*# . 
+  6  L,7,L +*7 L,. . J,r*j*-,l*-*7*
+  7  # o*r*j*| # |,|,# |*# r,r*7*|*
+  8  # l*j*# X - + 7,# l*-*7*l*+*j*
+  9  r,+,. r,+,-,-,J,r,. r,l*+*j*. 
+ 10  |,L,+,7,|,# . # |,r,. +,+,7,# 
+ 11  L,-,. |,L,-,7,# |,L,+,+,. |,. 
+ 12  . # . A r,-,J,# L,-,+,+,7,|,# 
+ 13  r,-,. r,B 7,# . . # |,L,. |,# 
+ 14  L,-,-,. L,J,# . . . L,-,-,J,. 
+
+===== CAS graine=5 niveau=28 geste=2159 =====
+  X = coude (11,7) a convertir en croix
+  A = tete avant (7,8)   B = tete apres (13,10)
+  longueur du flux : 75 -> 75   segment reparcouru a l'envers : 6 cases
+  objectif restant : 67
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  . . # . . r,r*+*-*-*-*-*-*7*7,
+  1  . # # . # L,+*# . . -,. # +*J,
+  2  # . . # r,. |*. . . r 7 . |*# 
+  3  . # r,. . # +*r + - + J # l*7*
+  4  r,-,. r,-,. |*L 7 . l*+*7*. |*
+  5  |,# . . . . +*J,+ +,7,# |*. +*
+  6  |,. . . . . +*. L + 7 . l*-*j*
+  7  L,J,. . . J,|*. . . L X -,+,7,
+  8  # # L,. . r*j*A -,7,r J # |,|,
+  9  r,-,-,-,. |*L,. # L,J J,. J,|,
+ 10  L,-,-,-,. l*-*7*7,# . . J,B J,
+ 11  . -,-,-,. 7,# |*J,r,J,# . J,# 
+ 12  |,. . 7,. J,. l*+*7*. r*+*-*7*
+ 13  |,L,7,L,+,. +,7,r*j*r*j*o*J,+*
+ 14  L,. J,# L,. J,L,l*+*j*# l*+*j*
+
+===== CAS graine=7 niveau=28 geste=299 =====
+  X = coude (11,9) a convertir en croix
+  A = tete avant (7,8)   B = tete apres (13,12)
+  longueur du flux : 46 -> 46   segment reparcouru a l'envers : 6 cases
+  objectif restant : 76
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r,. r*-*+*7*. . . . . . . -,7,
+  1  L,. l*7*. l*7*. . . . . . . J,
+  2  # # . |*# r*j*# . . . # . # . 
+  3  . r*+*j*r*j*r - + 7 . 7,# r,. 
+  4  r*j*# # L 7 | # . + . . . . . 
+  5  l*7*r,7,. L J . . + . . . . . 
+  6  . |*. . . . . . . | . . # . 7,
+  7  . |*. . +,. # . . L 7 r,. . . 
+  8  . |*7,# . . # A -,7,| . . +,. 
+  9  . o*. 7,. . . . . + L X -,+,7,
+ 10  . . . . . . . J,# L - J -,. |,
+ 11  r,. . . . . # # r,. r,. -,7,|,
+ 12  . . 7,# . . 7,# . r,+,. 7,B J,
+ 13  r,. . . . +,J,# L,. . 7,. 7,# 
+ 14  L,. . . . J,# . . # # . . J,. 
+
+===== CAS graine=7 niveau=28 geste=535 =====
+  X = coude (7,2) a convertir en croix
+  A = tete avant (10,2)   B = tete apres (8,3)
+  longueur du flux : 61 -> 61   segment reparcouru a l'envers : 6 cases
+  objectif restant : 65
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  # r,r*7*# r,. -,-,-,7,# r,. 7,
+  1  r*7*+*+*. |,r,|,-,-,+,7,|,r,J,
+  2  |*l*j*+*# . r X 7,# A +,+,+,7,
+  3  +*r - J r - J . B r,. . . . . 
+  4  |*L + + J -,. . . +,7,# . +,. 
+  5  +*# . . # . . . . +,+,-,. +,7,
+  6  l*-*7*. . . . 7,. . . # r,. |,
+  7  . . |*. -,-,. . . # . . . r,. 
+  8  # . +*. -,-,7,# . -,. r,. +,7,
+  9  r*7*|*# # . +,7,o*-*7*. r,J,|,
+ 10  |*l*j*# r,. . . # # +*. J,r,J,
+ 11  |*# |,# . . . -,r*7*l*7*. +,7,
+ 12  |*-,+,7,L,. r*+*j*l*+*j*. J,|,
+ 13  |*# L,. # . +*7,# L,7,# r,7,|,
+ 14  l*-*-*+*-*+*j*. . # L,. J,L,J,
+
+===== CAS graine=7 niveau=28 geste=538 =====
+  X = coude (6,2) a convertir en croix
+  A = tete avant (10,3)   B = tete apres (11,3)
+  longueur du flux : 61 -> 66   segment reparcouru a l'envers : 8 cases
+  objectif restant : 60
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  # r,r*7*# r,. -,-,-,7,# r,. 7,
+  1  r*7*+*+*. |,r,+ -,-,+,7,|,r,J,
+  2  |*l*j*+*# . X J 7,# |,+,+,+,7,
+  3  +*r - j*r - J . . r,A B . . . 
+  4  |*L + + J -,. . . +,7,# . +,. 
+  5  +*# . 7,# . . . . +,+,-,. +,7,
+  6  l*-*7*. . . . 7,. . . # r,. |,
+  7  . . |*. -,-,. . . # . . . r,. 
+  8  # . +*. -,-,7,# . -,. r,. +,7,
+  9  r*7*|*# # . +,7,o*-*7*. r,J,|,
+ 10  |*l*j*# r,. . . # # +*. J,r,J,
+ 11  |*# |,# . . . -,r*7*l*7*. +,7,
+ 12  |*-,+,7,L,. r*+*j*l*+*j*. J,|,
+ 13  |*# L,. # . +*7,# L,7,# r,7,|,
+ 14  l*-*-*+*-*+*j*. . # L,. J,L,J,
+
+===== CAS graine=7 niveau=28 geste=1002 =====
+  X = coude (14,8) a convertir en croix
+  A = tete avant (8,8)   B = tete apres (12,12)
+  longueur du flux : 82 -> 82   segment reparcouru a l'envers : 5 cases
+  objectif restant : 44
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  # r,r*7*# r,-,r*-*-*7 # r,. 7,
+  1  r*7*+*+*. |,r,+*-,-,+ 7,|,r,J,
+  2  |*l*j*+*# |,r*j*7,# | +,+,+,7,
+  3  +*r*-*j*r*-*j*. . r,| . |,|,|,
+  4  |*l*+*+*j*-,. . . +,+ # L,+,. 
+  5  +*# . 7,# . . . . +,+ -,. +,7,
+  6  l*-*7*L,. . . 7,|,L,+ # r,. |,
+  7  L,-,|*. -,-,. L,. # L + - - 7 
+  8  # . +*. -,-,7,# A -,- - + + X 
+  9  r*7*|*# # . +,7,o*-*7*. r,J,|,
+ 10  |*l*j*# r,. L,. # # +*. J,r,J,
+ 11  |*# |,# |,. . -,r*7*l*7*. +,7,
+ 12  |*-,+,7,L,. r*+*j*l*+*j*B J,|,
+ 13  |*# L,. # r,+*7,# L,7,# r,7,|,
+ 14  l*-*-*+*-*+*j*. . # L,. J,L,J,
+
+===== CAS graine=8 niveau=28 geste=555 =====
+  X = coude (4,13) a convertir en croix
+  A = tete avant (2,10)   B = tete apres (10,14)
+  longueur du flux : 74 -> 74   segment reparcouru a l'envers : 8 cases
+  objectif restant : 52
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r,-,-,-,. . . . r*+*+*7*. -,7,
+  1  L,r*+*-*o*. 7,# |*7,# |*. . J,
+  2  # l*-*+*-*-*+*7*l*7*. l*+*-*7*
+  3  r,. . . # |,# l*-*j*# |,# r,|*
+  4  |,# # r,. r*7*# |,L,7,L,-,+,+*
+  5  . . . . r*+*j*# |,r,J,# r,r*j*
+  6  r,. . . +*l*+*7*. |,# r,r*j*7,
+  7  |,# . . |*. 7,l*-*-*-*-*j*# |,
+  8  . . . . l*7*J,# # r,. . J,# |,
+  9  r,7,+,-,7 +*# r,. +,7,# # r,J,
+ 10  |,L,A . | l*7*. . . . 7,# L,7,
+ 11  |,# r,. | . |*. . r,. . r,. J,
+ 12  L,+,. r,+ . |*r,. . r,. . r,7,
+ 13  r - - - X +,+*+,7,# . . . J,|,
+ 14  L - - - - + j*. L,-,B . -,-,J,
+
+===== CAS graine=10 niveau=28 geste=129 =====
+  X = coude (11,2) a convertir en croix
+  A = tete avant (10,0)   B = tete apres (10,2)
+  longueur du flux : 67 -> 67   segment reparcouru a l'envers : 6 cases
+  objectif restant : 51
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  . r*+*-*7*# r,-,. r,A -,-,7,# 
+  1  # |*r*-*j*. . # L,. . -,-,J,. 
+  2  r,+*l*7*r*7*r 7 # L,B X + - 7 
+  3  r*j*# |*+*+ | L - - 7 L,. . | 
+  4  |*# . l*j*L J . . . L - 7 . | 
+  5  |*7,# # . o*. . . . . . L + J 
+  6  +*. . . r*j*. . . . . . . . 7,
+  7  |*# L,. |*. # L,J,# . . 7,. J,
+  8  +*-,. . |*. . . # # L,. +,J,. 
+  9  +*# . # +*. . . . . . # |,# . 
+ 10  l*7*r*-*j*. . . . . J,r,J,# . 
+ 11  |,+*|*. . J,r,. . . # L,. 7,# 
+ 12  L,|*|*. . . J,r,. . . -,-,+,7,
+ 13  # |*l*7*r,. r,+,. . -,7,# |,|,
+ 14  # l*+*j*J,L,J,L,. . -,J,. L,J,
+
+===== CAS graine=10 niveau=28 geste=141 =====
+  X = coude (13,7) a convertir en croix
+  A = tete avant (12,11)   B = tete apres (11,8)
+  longueur du flux : 76 -> 78   segment reparcouru a l'envers : 6 cases
+  objectif restant : 40
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  . r*+*-*7*# r,-,. r,. -,-,7,# 
+  1  # |*r*-*j*. . # L,. . r 7 J,. 
+  2  r,+*l*7*r*7*r*7*# L,. L + + 7 
+  3  r*j*# |*+*+*|*L - - 7 L,L 7 | 
+  4  |*# . l*j*l*j*. . . L - 7 + | 
+  5  |*7,# # . o*. . . . . . L + J 
+  6  +*J,. . r*j*. . . . . . . | 7,
+  7  |*# L,. |*J,# L,J,# . . 7,X J,
+  8  +*-,. . |*. . . # # L,B +,J,. 
+  9  +*# . # +*. . . . . . # |,# . 
+ 10  l*7*r*-*j*r,. . . . J,r,J,# . 
+ 11  |,+*|*. . J,r,. . . # L,A 7,# 
+ 12  L,|*|*. . . J,r,. . . -,-,+,7,
+ 13  # |*l*7*r,. r,+,. . -,7,# |,|,
+ 14  # l*+*j*J,L,J,L,. . -,J,. L,J,
+
+===== CAS graine=11 niveau=28 geste=533 =====
+  X = coude (1,5) a convertir en croix
+  A = tete avant (1,9)   B = tete apres (5,1)
+  longueur du flux : 74 -> 74   segment reparcouru a l'envers : 7 cases
+  objectif restant : 52
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r,-,-,-,-,-,. -,r*-*7*# # r,7,
+  1  |,r,-,-,-,B . -,l*7*l*-*+*7*J,
+  2  L,+,-,. . . . . . +*. +,r*j*# 
+  3  # |,r,. . . . . . |*# |,|*+,7,
+  4  # |,L,. . . . 7,# l*7*o*j*. |,
+  5  . X 7 . . . 7,. . r*j*-,. # +,
+  6  # | L 7 7,# L,J,# +*7,# r,. . 
+  7  r J r J . . # # . +*. . . . 7,
+  8  L + + 7 # . . 7,# |*. . . . |,
+  9  . A J,L - - + + 7 +*. . . r*7*
+ 10  L,-,-,-,. +,. r J +*. r*+*j*+*
+ 11  . -,-,. 7,# . + . |*r*j*# r*j*
+ 12  |,# . . +,-,. |*# l*j*L,. |*7,
+ 13  . r,. . . # . +*. r*7*# r*j*J,
+ 14  L,J,# L,. -,J,l*-*j*l*-*j*# . 
+
+===== CAS graine=12 niveau=28 geste=166 =====
+  X = coude (11,2) a convertir en croix
+  A = tete avant (11,6)   B = tete apres (12,3)
+  longueur du flux : 99 -> 103   segment reparcouru a l'envers : 5 cases
+  objectif restant : 15
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r - - 7 -,. . . . -,7,. # r,7,
+  1  | # r J . r,. . . . J,# r,+,J,
+  2  L 7 | # |,L,r - + + + X J,|,# 
+  3  L,| + . J,r,+ r*7*. r J B J,. 
+  4  # +*+ . . r J +*l*7*| . . 7,# 
+  5  r*j*+ . # | # l*7*|*L 7 . +,7,
+  6  l*7*L 7 # + . # |*|*. A # |,|,
+  7  r*j*# L - J # r*j*l*+*+*+*7*|,
+  8  |*|,. # |,|,# l*7*J,r,7,# +*J,
+  9  l*7*# r,J,|,# L,|*. J,. r*j*# 
+ 10  r*j*r,J,r,. 7,# |*. . . l*7*7,
+ 11  |*# L,. . +,J,r*j*. . . o*l*7*
+ 12  +*-,7,# |,r*-*j*r,. . -,l*7*+*
+ 13  |*# L,. r*j*7,r,. . . -,r*j*+*
+ 14  l*+*-*+*j*J,L,J,L,. -,-,l*-*j*
+
+===== CAS graine=12 niveau=28 geste=526 =====
+  X = coude (4,11) a convertir en croix
+  A = tete avant (5,10)   B = tete apres (5,11)
+  longueur du flux : 69 -> 69   segment reparcouru a l'envers : 5 cases
+  objectif restant : 53
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  . . r,-,. -,-,7,# . . # r,. 7,
+  1  . # |,r,. -,-,J,r,7,# . L,7,|,
+  2  # r,J,L,. . r,. +,r*7*# # |,|,
+  3  r,. r,. . +,J,# L,|*l*-*7*J,|,
+  4  L,. . # . . # . r*+*o*J,+*. J,
+  5  r 7 . . . . . r*j*|*r,. |*7,# 
+  6  | | . . . . # l*-*j*J,r,+*|,# 
+  7  | L 7 # . . 7,# r,7,r*-*j*J,. 
+  8  | . + . +,. . . . L,|*. . # . 
+  9  + # L 7 L,. . . . . l*7*r*-*7*
+ 10  L + 7 | # A 7,. . L,. l*j*. +*
+ 11  L,. + L X B +,. . # . # r*-*j*
+ 12  . # + -,-,-,J,# L,. r*-*j*r,J,
+ 13  . # l*-*-*-*-*7*r*7*|*7,r,. 7,
+ 14  . . L,. L,J,# l*j*l*j*L,J,L,J,
+
+===== CAS graine=13 niveau=28 geste=691 =====
+  X = coude (6,0) a convertir en croix
+  A = tete avant (8,4)   B = tete apres (3,3)
+  longueur du flux : 91 -> 91   segment reparcouru a l'envers : 5 cases
+  objectif restant : 35
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  . r,7,# r,-,X + + - + - - 7 . 
+  1  # |,|,# |,. L - 7 . r*-*7*+ # 
+  2  r,J,|,# |,L,. . | r*j*r*j*L 7 
+  3  L,7,|,B J,. . . + l*7*|*# . + 
+  4  # r*+*+*7*. . . A . |*l*-*+*j*
+  5  . |*# . |*. . . . o*l*7*+,7,# 
+  6  # +*r*7*l*-*7*. . |*. |*. L,7,
+  7  . +*|*+*# # l*-*-*j*. |*. . . 
+  8  # l*+*j*r*+*7*r,. r*+*j*. . 7,
+  9  . # +*. +*# +*J,r*j*. # r,. J,
+ 10  r,r*+*-*j*# l*-*j*# r,. . # . 
+ 11  r*j*|*J,L,-,-,-,-,. . r,. -,7,
+ 12  l*+*+*7*-,-,-,-,-,. -,+,7,# |,
+ 13  L,. +*|*# # . # r,7,r,+,+,7,|,
+ 14  . # l*j*-,-,. -,J,L,J,L,J,L,J,
+
+===== CAS graine=16 niveau=28 geste=172 =====
+  X = coude (9,9) a convertir en croix
+  A = tete avant (7,11)   B = tete apres (7,9)
+  longueur du flux : 102 -> 103   segment reparcouru a l'envers : 7 cases
+  objectif restant : 15
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r*-*7*r*-*7*r + - 7 # r,r - 7 
+  1  |*r,+*|*r*j*| -,. L + - J r J 
+  2  +*r*+*+*+*7*+ 7,# r - 7 J,L 7 
+  3  l*+*+*j*+*L J J,. + # L + - J 
+  4  r,+*l*-*+*7*. r*7*+ 7,# r,J,# 
+  5  |,l*-*7*|*l*+*j*+*| . 7,. . 7,
+  6  |,. . l*+*+*-*7*+*+ # |,# # |,
+  7  L,-,-,. +*. -,+*|*+ # |,# r,J,
+  8  # r,-,. l*-*7*l*j*L 7 L,-,+,7,
+  9  r,J,r,r*-*7*+*B -,X J # # L,J,
+ 10  L,-,. |*# l*j*. -,7,# . . # . 
+ 11  r,-,J,l*+*o*r,A -,+,7,. # . . 
+ 12  L,7,# r,. 7,. . 7,L,J,# . . . 
+ 13  r,J,r,+,7,L,. -,J,# . . . . . 
+ 14  L,-,J,L,J,# . # . # . . # . . 
+
+===== CAS graine=20 niveau=28 geste=145 =====
+  X = coude (4,3) a convertir en croix
+  A = tete avant (3,4)   B = tete apres (3,3)
+  longueur du flux : 92 -> 92   segment reparcouru a l'envers : 5 cases
+  objectif restant : 26
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r 7 # r,r - 7 . . . . -,7,# . 
+  1  | | r - J . + . . . . . J,r,7,
+  2  | L J r,. . + . . . . . . J,|,
+  3  L 7 # B X - J . 7,r,. 7,# r,J,
+  4  r J r,A 7,L,7,# L,. r,. r,+,7,
+  5  + -,L,-,J,# L,7,# . . . . +,J,
+  6  | r + 7 # . # |,# L,. . L,J,# 
+  7  L J r*+*7*r*-*-*7*. . . 7,# # 
+  8  r*+*j*+ l*j*r*-*j*. . . . # . 
+  9  |*. . + . . |*# |,# . . -,-,7,
+ 10  +*. . | . . l*-*+*7*J,# r,. . 
+ 11  |*. r J # r*7*# r*j*o*-*7*r,7,
+ 12  |*L,| . r*j*l*-*j*. +,. |*. |,
+ 13  |*# L + J # # . r*+*-*7*|*. J,
+ 14  l*+*+*-*+*-*-*-*j*. # l*j*# . 
+
+===== CAS graine=20 niveau=28 geste=173 =====
+  X = coude (11,2) a convertir en croix
+  A = tete avant (8,0)   B = tete apres (11,6)
+  longueur du flux : 110 -> 129   segment reparcouru a l'envers : 6 cases
+  objectif restant : 0
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r 7 # r,r - 7 . A -,-,-,7,# . 
+  1  | | r - J r + 7 . . . -,J,r,7,
+  2  |*L J r - J + L - - - X -,J,|,
+  3  l*7*# + r - J . 7,r,. 7,# r,J,
+  4  r*j*r J + L,7,# L,. r,. r,+,7,
+  5  +*-,L - J # L,7,# . . r,+,+,J,
+  6  |*r*+*7*# . # |,# L,. B L,J,# 
+  7  l*j*r*+*7*r*-*-*7*. . -,7,# # 
+  8  r*+*j*+*l*j*r*-*j*. -,-,. # . 
+  9  |*. . +*. . |*# |,# r,. -,-,7,
+ 10  +*-,. |*. . l*-*+*7*J,# r,. . 
+ 11  |*. r*j*# r*7*# r*j*o*-*7*r,7,
+ 12  |*L,|*+,r*j*l*-*j*r,+,. |*J,|,
+ 13  |*# l*+*j*# # r,r*+*-*7*|*. J,
+ 14  l*+*+*-*+*-*-*-*j*. # l*j*# . 
+
+===== CAS graine=20 niveau=28 geste=191 =====
+  X = coude (10,6) a convertir en croix
+  A = tete avant (12,8)   B = tete apres (11,4)
+  longueur du flux : 137 -> 137   segment reparcouru a l'envers : 5 cases
+  objectif restant : 0
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r*7*# r,r*-*7 . . -,-,r 7 # . 
+  1  |*|*r*-*j*r + 7 . . . | L + 7 
+  2  |*l*j*r - J + L - - - J -,J,| 
+  3  l*7*# + r - J . 7,r,. 7,# r J 
+  4  r*j*r J + L,7,# L,. r,B r + 7 
+  5  +*-,L - J # L,7,# r,J,r + + J 
+  6  |*r*+*7*# . # |,# L,X J L J # 
+  7  l*j*r*+*7*r*-*-*7*. | -,7,# # 
+  8  r*+*j*+*l*j*r*-*j*. + -,A # . 
+  9  |*-,. +*. . |*# |,# L,J,-,-,7,
+ 10  +*-,. |*. . l*-*+*7*J,# r,. J,
+ 11  |*r,r*j*# r*7*# r*j*o*-*7*r,7,
+ 12  |*L,|*+,r*j*l*-*j*r,+,. |*J,|,
+ 13  |*# l*+*j*# # r,r*+*-*7*|*. J,
+ 14  l*+*+*-*+*-*-*-*j*J,# l*j*# . 
+
+===== CAS graine=20 niveau=28 geste=911 =====
+  X = coude (14,10) a convertir en croix
+  A = tete avant (13,13)   B = tete apres (11,13)
+  longueur du flux : 81 -> 81   segment reparcouru a l'envers : 5 cases
+  objectif restant : 45
+  ( , = case du tas   * = deja traversee par le flux )
+     0 1 2 3 4 5 6 7 8 91011121314
+  0  r,-,. 7,# r,-,. 7,# r,. . . 7,
+  1  L,r*-*7*. J,. . J,. . . . . . 
+  2  # +*7,|*# . J,r*+*-*+*7*. . 7,
+  3  r*j*L,l*+*7*# |*# |,# |*. . |,
+  4  |*# . # L,l*-*j*# r*+*j*. # |,
+  5  +*# # r,. . . r*-*j*. . . . . 
+  6  |*. . +,. . . +*# r,. # . . . 
+  7  +*. . . # . 7,|*# r - - - + 7 
+  8  +*. . . . r*+*j*# L 7 # L,. | 
+  9  |*L,r*+*+*j*. # r,. | 7,# . | 
+ 10  +*. +*. r + + 7 . . | L,r - X 
+ 11  +*. L - J . . L 7 . + . L 7 |,
+ 12  |*. -,+,-,. . . | r J r,-,+,J,
+ 13  l*o*# . # . . . | | r,B . A . 
+ 14  L,J,. # . L,. . L J J,L,. . J,

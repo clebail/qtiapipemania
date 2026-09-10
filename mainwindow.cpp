@@ -27,6 +27,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), horloge() {
     pbSpace->setCheckable(true);
     pbSpaceAnticp->setCheckable(true);
     pbMemoire->setCheckable(true);
+    pbCroix->setCheckable(true);
 
     // Sans ca, un bouton garde le focus apres le clic et avale la barre
     // d'espace : elle rejouerait le bouton au lieu de lancer le flux.
@@ -34,6 +35,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), horloge() {
     pbSpace->setFocusPolicy(Qt::NoFocus);
     pbSpaceAnticp->setFocusPolicy(Qt::NoFocus);
     pbMemoire->setFocusPolicy(Qt::NoFocus);
+    pbCroix->setFocusPolicy(Qt::NoFocus);
     pbPause->setFocusPolicy(Qt::NoFocus);
     pbGeste->setFocusPolicy(Qt::NoFocus);
     pbPose->setFocusPolicy(Qt::NoFocus);
@@ -297,6 +299,7 @@ QString MainWindow::nomBotCourant() const {
     if(pbSpace->isChecked())       return "space";
     if(pbSpaceAnticp->isChecked()) return "spaceAnticp";
     if(pbMemoire->isChecked())     return "memoire";
+    if(pbCroix->isChecked())       return "croix";
 
     return QString();
 }
@@ -314,6 +317,7 @@ void MainWindow::installerBot(const QString &nom) {
     pbSpace->setChecked(nom == "space");
     pbSpaceAnticp->setChecked(nom == "spaceAnticp");
     pbMemoire->setChecked(nom == "memoire");
+    pbCroix->setChecked(nom == "croix");
 
     majPasAPas();
 }
@@ -334,6 +338,10 @@ void MainWindow::on_pbSpaceAnticp_clicked() {
 
 void MainWindow::on_pbMemoire_clicked() {
     installerBot(pbMemoire->isChecked() ? "memoire" : QString());
+}
+
+void MainWindow::on_pbCroix_clicked() {
+    installerBot(pbCroix->isChecked() ? "croix" : QString());
 }
 
 // Simple bascule : un clic fige la partie (bot compris, battement() ne fait

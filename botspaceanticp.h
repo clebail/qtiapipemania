@@ -43,6 +43,12 @@ protected:
     virtual bool poseAcceptable(const ETypePiece& type, int col, int row, ESens entree,
                                 bool strict) const;
 
+    // Un coup que le v3 ne connait pas. Appele une fois la tete connue et avant
+    // le choix du pont : une sous-classe qui rend vrai a joue son geste, et le
+    // v3 lui laisse la main. Le v3 lui-meme n'en a aucun, d'ou le faux -- son
+    // deroulement est donc inchange, bit pour bit.
+    virtual bool coupSpecial(int col, int row, ESens entree);
+
     // Premiere case libre de la chaine que le trace suivra apres avoir pose
     // file[pont] sur la tete (tCol,tRow,tEntree) : les cases deja pre-posees
     // d'un tour precedent sont traversees, la chaine s'arrete sur une case en

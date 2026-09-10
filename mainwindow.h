@@ -86,6 +86,7 @@ private slots:
     void on_pbSpace_clicked();
     void on_pbSpaceAnticp_clicked();
     void on_pbMemoire_clicked();
+    void on_pbCroix_clicked();
     void on_pbPause_clicked();
     void on_cbStep_toggled(bool actif);
     void on_pbGeste_clicked();

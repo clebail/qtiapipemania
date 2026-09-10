@@ -20,6 +20,7 @@ SOURCES += \
     botspace.cpp \
     botspaceanticp.cpp \
     botmemoire.cpp \
+    botcroix.cpp \
     botfactory.cpp \
     common.cpp \
     dessinpiece.cpp \
@@ -40,6 +41,7 @@ HEADERS += \
     botspace.h \
     botspaceanticp.h \
     botmemoire.h \
+    botcroix.h \
     botfactory.h \
     common.h \
     dessinpiece.h \
