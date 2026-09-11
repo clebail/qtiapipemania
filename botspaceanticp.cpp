@@ -30,15 +30,47 @@ bool BotSpaceAnticp::poseAcceptable(const ETypePiece& type, int col, int row, ES
     return !strict || !culDeSac(type, col, row, entree);
 }
 
-bool BotSpaceAnticp::caseAnticipee(int tCol, int tRow, ESens tEntree, int pont,
+// Le pont est un moyen d'apprendre OU ira le trace, pas une fin. Sur une tete
+// obligee on le sait sans lui : l'obligation porte sur la direction, et c'est
+// elle seule que la projection de la chaine lit. Le v3 attendait que la piece
+// soit dans la file pour s'en rendre compte, et defaussait en attendant --
+// alors que la case suivante et son entree etaient deja connues, et que la
+// file contenait peut-etre de quoi la remplir.
+bool BotSpaceAnticp::pontForce(int col, int row, ESens entree, bool strict,
+                               ETypePiece &type) const {
+    bool trouve = false;
+    ESens direction = sHaut;
+
+    foreach(ETypePiece t, Ecoulement::piecesCompatibles(entree)) {
+        QVector<ESens> sortie = Ecoulement::sorties(t, sHaut, entree);
+
+        if(sortie.isEmpty() || !poseAcceptable(t, col, row, entree, strict)) {
+            continue;
+        }
+
+        if(!trouve) {
+            trouve = true;
+            direction = sortie.first();
+            type = t;
+        } else if(sortie.first() != direction) {
+            // Deux directions : c'est un carrefour, la suite depend de la
+            // pioche. Rien a anticiper.
+            return false;
+        }
+    }
+
+    return trouve;
+}
+
+bool BotSpaceAnticp::caseAnticipee(int tCol, int tRow, ESens tEntree, const ETypePiece &typePont,
                                    int &fCol, int &fRow, ESens &fEntree,
                                    QVector<int> *chaine) const {
     Game *plateau = p->plateau();
     int largeur = p->getLargeur();
     int hauteur = p->getHauteur();
 
-    // Depart de la chaine : la case ou debouche file[pont] pose sur la tete.
-    QVector<ESens> sortiePont = Ecoulement::sorties(p->file()->getPiece(pont).type, sHaut, tEntree);
+    // Depart de la chaine : la case ou debouche le pont pose sur la tete.
+    QVector<ESens> sortiePont = Ecoulement::sorties(typePont, sHaut, tEntree);
     if(sortiePont.isEmpty()) {
         return false;
     }
@@ -102,7 +134,7 @@ bool BotSpaceAnticp::caseAnticipee(int tCol, int tRow, ESens tEntree, int pont,
 // Sans ce test, le v3 batissait des chaines qui ne menaient nulle part, chaque
 // maillon ayant l'air excellent isolement -- 193 cases libres autour -- et
 // l'ensemble finissant dans un mur trois cases plus loin.
-bool BotSpaceAnticp::chaineViable(int col, int row, ESens entree, int pont,
+bool BotSpaceAnticp::chaineViable(int col, int row, ESens entree, const ETypePiece &typePont,
                                   int fCol, int fRow, const ETypePiece &type,
                                   const QVector<int> &chaine) const {
     Game *plateau = p->plateau();
@@ -119,7 +151,7 @@ bool BotSpaceAnticp::chaineViable(int col, int row, ESens entree, int pont,
 
     if(restant > 0) {
         int besoin = qMax(1, restant - 1);
-        bon = espaceApres(p->file()->getPiece(pont).type, col, row, entree,
+        bon = espaceApres(typePont, col, row, entree,
                           besoin, nullptr, &chaine) >= besoin;
     }
 
@@ -134,17 +166,21 @@ void BotSpaceAnticp::ancrerDefausse(int col, int row, ESens entree) {
 
     ancrageDefausse = -1;
 
-    // Un pont, meme lache : il suffit a projeter un trajet plausible.
+    // Un pont, meme lache : il suffit a projeter un trajet plausible. Faute de
+    // pont dans la file, une tete obligee donne le meme trajet.
     int pont = choisirPont(col, row, entree, false);
+    ETypePiece typePont;
 
-    if(pont < 0) {
+    if(pont >= 0) {
+        typePont = p->file()->getPiece(pont).type;
+    } else if(!pontForce(col, row, entree, false, typePont)) {
         return;
     }
 
     int fc, fr;
     ESens fe;
 
-    if(!caseAnticipee(col, row, entree, pont, fc, fr, fe)) {
+    if(!caseAnticipee(col, row, entree, typePont, fc, fr, fe)) {
         return;
     }
 
@@ -162,11 +198,34 @@ void BotSpaceAnticp::ancrerDefausse(int col, int row, ESens entree) {
     int gc, gr;
     ESens ge;
 
-    if(caseAnticipee(col, row, entree, pont, gc, gr, ge) && (gc != fc || gr != fr)) {
+    if(caseAnticipee(col, row, entree, typePont, gc, gr, ge) && (gc != fc || gr != fr)) {
         ancrageDefausse = gr * p->getLargeur() + gc;
     }
 
     plateau->setTypePiece(fc, fr, avant);
+}
+
+// Le haut de file va sur la premiere case libre de la chaine qui suivra le
+// pont, s'il y est acceptable -- au meme degre d'exigence que le pont lui-meme.
+// Avoir renonce pour le pont et rester exigeant pour la chaine ne protegerait
+// rien et couterait des defausses. Geste apres geste, les pieces d'avant le
+// pont s'y enchainent.
+bool BotSpaceAnticp::preposer(int col, int row, ESens entree, const ETypePiece &typePont,
+                              bool strict) {
+    int fc, fr;
+    ESens fe;
+    Piece haut = p->file()->getPiece(0);
+
+    QVector<int> chaine;
+
+    if(caseAnticipee(col, row, entree, typePont, fc, fr, fe, &chaine)
+       && Ecoulement::piecesCompatibles(fe).contains(haut.type)
+       && poseAcceptable(haut.type, fc, fr, fe, strict)
+       && chaineViable(col, row, entree, typePont, fc, fr, haut.type, chaine)) {
+        return poserCaseTas(fc, fr, 2);
+    }
+
+    return false;
 }
 
 void BotSpaceAnticp::jouer(float dt) {
@@ -206,7 +265,18 @@ void BotSpaceAnticp::jouer(float dt) {
         //   - aucun type ne la sauverait : attendre ne ferait que depenser la
         //     manche en defausses. On se rabat alors sur "ne pas mourir sur le
         //     coup", faute de mieux.
+        //
+        // Dans le premier cas, la piece attendue n'est pas la, mais si la tete
+        // est obligee on sait deja ou elle menera : on construit derriere elle
+        // plutot que de defausser.
         if(!acculeParLeFlux(2.0f) && ouvertureUtile(col, row, entree) > 0) {
+            ETypePiece typePont;
+
+            if(pontForce(col, row, entree, true, typePont)
+               && preposer(col, row, entree, typePont, true)) {
+                return;
+            }
+
             ancrerDefausse(col, row, entree);
             defausser();
             return;
@@ -217,8 +287,16 @@ void BotSpaceAnticp::jouer(float dt) {
 
     if(pont < 0) {
         // Aucune piece de la file ne prolonge la tete : on attend une meilleure
-        // pioche tant que le flux ne talonne pas.
+        // pioche tant que le flux ne talonne pas -- en construisant derriere
+        // elle si la tete est obligee, comme ci-dessus.
         if(!acculeParLeFlux(2.0f)) {
+            ETypePiece typePont;
+
+            if(pontForce(col, row, entree, false, typePont)
+               && preposer(col, row, entree, typePont, false)) {
+                return;
+            }
+
             ancrerDefausse(col, row, entree);
             defausser();
             return;
@@ -234,22 +312,8 @@ void BotSpaceAnticp::jouer(float dt) {
         return;
     }
 
-    // Pont plus loin : on pre-pose le haut de file sur la premiere case libre
-    // de la chaine qui suivra ce pont, s'il y est acceptable -- au meme degre
-    // d'exigence que le pont lui-meme. Avoir renonce pour le pont et rester
-    // exigeant pour la chaine ne protegerait rien et couterait des defausses.
-    // Geste apres geste, les pieces d'avant le pont s'y enchainent.
-    int fc, fr;
-    ESens fe;
-    Piece haut = p->file()->getPiece(0);
-
-    QVector<int> chaine;
-
-    if(caseAnticipee(col, row, entree, pont, fc, fr, fe, &chaine)
-       && Ecoulement::piecesCompatibles(fe).contains(haut.type)
-       && poseAcceptable(haut.type, fc, fr, fe, strict)
-       && chaineViable(col, row, entree, pont, fc, fr, haut.type, chaine)) {
-        poserCaseTas(fc, fr, 2);
+    // Pont plus loin : on pre-pose le haut de file sur la chaine qui le suivra.
+    if(preposer(col, row, entree, p->file()->getPiece(pont).type, strict)) {
         return;
     }
 
