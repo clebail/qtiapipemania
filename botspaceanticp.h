@@ -12,6 +12,10 @@
 // Geste apres geste, les pieces d'avant le pont s'y enchainent ; quand le pont
 // arrive au sommet il va sur la tete, et Bot::tete() sort la chaine du tas au
 // passage. Le reste (pose directe, defausse, fin de manche) est celui du v2.
+//
+// Sans pont dans la file, il anticipe encore si la tete est obligee : une seule
+// direction y survit, donc la chaine est connue avant meme que la piece qui
+// l'ouvrira soit piochee (pontForce).
 class BotSpaceAnticp : public Bot {
 public:
     BotSpaceAnticp(Partie *p, float cadence, quint32 seed);
@@ -43,8 +47,22 @@ protected:
     virtual bool poseAcceptable(const ETypePiece& type, int col, int row, ESens entree,
                                 bool strict) const;
 
+    // Le pont sans la file. Quand tous les types acceptables sur la tete (au
+    // sens de poseAcceptable, a ce degre d'exigence) sortent par la MEME
+    // direction, la tete est obligee : la piece qui la prolongera n'est pas
+    // encore la, mais on sait deja ou elle enverra le flux. `type` recoit l'un
+    // d'eux -- n'importe lequel, ils font tous le meme chemin (la croix
+    // traverse tout droit) -- de quoi projeter la chaine comme avec un vrai
+    // pont. False si aucune direction ne survit, ou si plusieurs survivent.
+    bool pontForce(int col, int row, ESens entree, bool strict, ETypePiece &type) const;
+
+    // Pre-pose le haut de file sur la premiere case libre de la chaine qui
+    // suivra `typePont` pose sur la tete, s'il s'y raccorde et que la chaine
+    // reste viable. False si rien n'a ete pose.
+    bool preposer(int col, int row, ESens entree, const ETypePiece &typePont, bool strict);
+
     // Premiere case libre de la chaine que le trace suivra apres avoir pose
-    // file[pont] sur la tete (tCol,tRow,tEntree) : les cases deja pre-posees
+    // `typePont` sur la tete (tCol,tRow,tEntree) : les cases deja pre-posees
     // d'un tour precedent sont traversees, la chaine s'arrete sur une case en
     // travers ou hors grille. Renvoie false si aucune case libre. Pure
     // projection, ne touche a rien.
@@ -52,14 +70,14 @@ protected:
     // celles deja posees comme celles encore vides. Ces dernieres sont les
     // "trous du flux" : le trace y passera, elles ne sont donc pas de la place
     // disponible, et les compter comme telles gonflait l'espace percu.
-    bool caseAnticipee(int tCol, int tRow, ESens tEntree, int pont,
+    bool caseAnticipee(int tCol, int tRow, ESens tEntree, const ETypePiece &typePont,
                        int &fCol, int &fRow, ESens &fEntree,
                        QVector<int> *chaine = nullptr) const;
 
     // Vrai si, une fois `type` pose en (fCol,fRow), le pont sur la tete mene
     // encore quelque part. Juge la CHAINE, pas le maillon : voir le commentaire
     // dans botspaceanticp.cpp.
-    bool chaineViable(int col, int row, ESens entree, int pont,
+    bool chaineViable(int col, int row, ESens entree, const ETypePiece &typePont,
                       int fCol, int fRow, const ETypePiece &type,
                       const QVector<int> &chaine) const;
 };

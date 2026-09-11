@@ -234,8 +234,9 @@ static void dessinerMarqueurAnticipation(QPainter& painter, const QRectF& tuile)
 // trajet anticipe, en pariant que le rang 1 recevra le type suppose. Hachures
 // rouges, verticales, pour qu'aucune des trois origines ne se confonde -- la
 // defausse ordinaire penche a droite, l'anticipation a gauche, le pari est
-// droit. Le plan reclamait cette case de toute facon : un pari perdu reste une
-// defausse valable, la teinte ne signale pas un risque mais une intention.
+// droit. Ici le plan de defausse n'a pas son mot a dire : seuls l'orientation
+// de l'entree et le refus de se condamner ont autorise la pose, et un pari
+// perdu est bien une piece depensee. La teinte signale ce risque-la.
 static void dessinerMarqueurPari(QPainter& painter, const QRectF& tuile) {
     static const QColor couleur(0xd8, 0x54, 0x54);
 

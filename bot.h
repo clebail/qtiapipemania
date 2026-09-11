@@ -2,6 +2,7 @@
 #define BOT_H
 
 #include <QVector>
+#include <QPair>
 #include "partie.h"
 
 class Bot
@@ -63,8 +64,8 @@ public:
 
     // Vrai si cette case du tas a ete posee sur un PARI : la case de rang 2 du
     // trajet anticipe, qui ne sera sur le chemin que si le rang 1 recoit le
-    // type suppose. Le plan la reclamait de toute facon, donc un pari perdu
-    // reste une defausse ordinaire -- mais on aime les voir.
+    // type suppose. Le plan de defausse n'a pas son mot a dire sur cette
+    // pose-la : un pari perdu est une piece depensee, et on aime les voir.
     bool estPari(int col, int row) const;
 
     // Vrai si le tas de defausse occupe cette case. N'a d'interet que pour les
@@ -310,11 +311,32 @@ protected:
     // `origine` : 1 = defausse selon le plan, 2 = pre-pose de l'anticipation,
     // 3 = defausse posee sur un pari de rang 2.
     bool poserCaseTas(int col, int row, unsigned char origine = 1);
-    // Case ou la defausse pose en priorite : le rang 2 du trajet anticipe,
-    // quand le bot en connait un. Elle sert deux fois -- comme premier choix,
-    // et comme point d'ancrage tant qu'aucun tas n'existe encore, au premier
-    // geste d'une manche. -1 quand le bot n'anticipe pas.
+    // Case ou la defausse pose AVANT TOUT : le rang 2 du trajet anticipe -- la
+    // tete, puis le pont, puis le rang 1 qu'on suppose, puis elle. -1 quand le
+    // bot n'anticipe pas. CONSOMMEE par defausser() : un ancrage ne vaut que
+    // pour le geste qui l'a calcule, la projection etant refaite a chaque fois.
     int ancrageDefausse = -1;
+    // Sens par lequel le flux entrerait dans `ancrageDefausse`. C'est lui qui
+    // decide si la piece a defausser y a sa place : elle doit s'y raccorder.
+    ESens ancrageEntree = sHaut;
+    // Les pieces que la projection a supposees EN AMONT du pari et que le
+    // plateau n'a pas encore : le pont pose sur la tete -- pris dans la file,
+    // ou impose quand la tete est obligee -- et le type qu'on imagine matche
+    // sur le rang 1, celui-la meme dont le pari depend. Chaque entree est
+    // (index de case, type suppose). Consommees avec l'ancrage.
+    QVector<QPair<int, ETypePiece>> ancrageAmont;
+    // Tout le trajet de la tete au pari, cases deja posees comprises. Le flux
+    // y sera passe avant d'atteindre le pari : ce n'est pas de la place que le
+    // pari puisse compter derriere lui. Consomme avec l'ancrage.
+    QVector<int> ancrageChaine;
+    // "Mene a la mort" pour le pari, mesure sur le plateau que le pari aura
+    // DEVANT LUI et non sur celui d'aujourd'hui : l'amont suppose est pose le
+    // temps du test, et le trajet tenu pour pris. Voir bot.cpp.
+    // Non-const : elle pose l'amont sur le plateau et lui retire sa marque de
+    // tas le temps de la mesure, puis remet tout en place.
+    bool pariCondamne(const ETypePiece& type, int col, int row, ESens entree,
+                      const QVector<QPair<int, ETypePiece>> &amont,
+                      const QVector<int> &chaine);
     // Remonte le trace depuis le reservoir et renvoie la case ou construire :
     // la premiere case vide, ou une case du tas qui ne raccorde pas (le bot la
     // reprendra). false si le trace bute sur un vrai obstacle (mur, bloc, piece

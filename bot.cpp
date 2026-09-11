@@ -1747,6 +1747,58 @@ void Bot::coinLePlusEloigne(int &x, int &y) const {
     }
 }
 
+// "Ne mene pas a la mort", mais mesure sur le plateau que le pari aura DEVANT
+// LUI, et non sur celui d'aujourd'hui. Le trajet anticipe repose sur des pieces
+// qui ne sont pas encore posees, et meneALaMort ne voit que ce qui l'est :
+//
+//   - le PONT sur la tete, qu'il vienne de la file ou qu'il soit impose parce
+//     que la tete est obligee -- dans les deux cas la case est encore vide ;
+//   - la piece qu'on IMAGINE matchee sur le rang 1, celle dont le pari depend ;
+//   - le TRAJET entier, ces deux-la comprises, que le flux aura deja traverse
+//     quand il atteindra le pari : ce n'est pas de la place a recompter.
+//
+// Sans eux, une sortie du pari qui debouche sur la tete ou sur le rang 1
+// passait pour une issue -- la case est vide, donc il y a de la place -- alors
+// que le flux y sera passe avant. Le pari s'enfermait derriere sa propre
+// chaine, et le garde-fou qui devait l'en empecher regardait ailleurs.
+bool Bot::pariCondamne(const ETypePiece& type, int col, int row, ESens entree,
+                       const QVector<QPair<int, ETypePiece>> &amont,
+                       const QVector<int> &chaine) {
+    Game *plateau = p->plateau();
+    int largeur = p->getLargeur();
+    QVector<ETypePiece> avant;
+    QVector<unsigned char> avantTas;
+
+    // On pose l'amont pour de faux, comme chaineViable le fait pour un maillon.
+    // Le sens n'a pas a etre touche : il ne compte que pour le reservoir, et le
+    // reservoir n'est jamais une case du trajet.
+    //
+    // La marque de tas part avec : la tete peut etre un rebut que le bot compte
+    // reprendre, et espaceApres tient tout rebut pour repris-able -- donc pour
+    // une issue. Ici c'est faux, cette case-la sera prise par le pont.
+    for(int i = 0; i < amont.size(); i++) {
+        int idx = amont.at(i).first;
+
+        avant << plateau->getTypePiece(idx % largeur, idx / largeur);
+        avantTas << tas.at(idx);
+
+        plateau->setTypePiece(idx % largeur, idx / largeur, amont.at(i).second);
+        tas[idx] = 0;
+    }
+
+    // meneALaMort, au detail pres que le trajet compte pour pris.
+    bool mort = espaceApres(type, col, row, entree, 1, nullptr, &chaine) == 0;
+
+    for(int i = amont.size() - 1; i >= 0; i--) {
+        int idx = amont.at(i).first;
+
+        plateau->setTypePiece(idx % largeur, idx / largeur, avant.at(i));
+        tas[idx] = avantTas.at(i);
+    }
+
+    return mort;
+}
+
 void Bot::defausser() {
     Game *plateau = p->plateau();
     int largeur = p->getLargeur();
@@ -1774,6 +1826,58 @@ void Bot::defausser() {
     ESens teteEntree;
     bool aTete = tete(teteCol, teteRow, teteEntree);
     int caseTete = aTete ? teteRow * largeur + teteCol : -1;
+
+    // LE PARI, avant tout le reste. La case de rang 2 du trajet anticipe -- la
+    // tete, le pont qui la prolongera, le rang 1 ou le bot gare deja, puis
+    // elle -- passe devant le plan de defausse au lieu d'attendre que celui-ci
+    // la reclame.
+    //
+    // Ce que ca change. Le pari ne se prenait qu'a la rencontre de deux
+    // hasards : que le trajet anticipe debouche sur une case, et que le plan y
+    // veuille justement le type du haut de file. La seconde condition ne se
+    // realisait presque jamais, et le pari -- 39 % de reussite mesures, contre
+    // 31 % de rendement pour une defausse ordinaire -- ne servait donc a peu
+    // pres jamais. On la laisse tomber : ce n'est plus un pari sans perte,
+    // c'est un pari qui rapporte plus qu'il ne coute.
+    //
+    // Deux garde-fous, et ils ne sont pas negociables :
+    //
+    //   - l'ORIENTATION. La piece doit se raccorder a l'entree par laquelle le
+    //     flux arriverait, pas seulement occuper la case. Le bon type dans le
+    //     mauvais sens bouche le trajet qu'on preparait ;
+    //   - la MORT. Poser la ne doit pas fermer la suite : si le flux qui
+    //     traverserait cette piece n'a plus nulle part ou aller, le pari se
+    //     paie d'une manche, pas d'une piece. Et cette mort-la se juge sur le
+    //     plateau A VENIR -- pont obligatoire ou anticipe pose sur la tete,
+    //     type imagine sur le rang 1, trajet tenu pour traverse -- sans quoi le
+    //     pari se croit de la place la ou sa propre chaine passera. C'est tout
+    //     l'objet de pariCondamne.
+    //
+    // L'ancrage est CONSOMME ici, l'amont qui le justifie avec lui : il vaut
+    // pour le geste qui l'a calcule, pas au-dela. defausser() est aussi appelee
+    // par des bots qui n'anticipent pas et par abandonner() ; leur servir la
+    // projection d'un geste precedent, c'est parier sur un trajet qui n'existe
+    // plus.
+    int ancrage = ancrageDefausse;
+    ESens entreeAncrage = ancrageEntree;
+    QVector<QPair<int, ETypePiece>> amont = ancrageAmont;
+    QVector<int> chaineAncrage = ancrageChaine;
+
+    ancrageDefausse = -1;
+    ancrageAmont.clear();
+    ancrageChaine.clear();
+
+    if(ancrage >= 0 && ancrage != caseTete) {
+        int ax = ancrage % largeur;
+        int ay = ancrage / largeur;
+
+        if(plateau->getTypePiece(ax, ay) == tpNone && p->peutPoser(ax, ay)
+           && Ecoulement::piecesCompatibles(entreeAncrage).contains(piece.type)
+           && !pariCondamne(piece.type, ax, ay, entreeAncrage, amont, chaineAncrage)) {
+            poserCaseTas(ax, ay, 3);
+            return;
+        }
+    }
 
     // Distance de chaque case au rebut le plus proche, en parcourant la grille
     // depuis toutes les cases du tas a la fois. C'est le critere principal du
@@ -1819,7 +1923,6 @@ void Bot::defausser() {
     // Tas vide : toutes les cases se valent, c'est l'eloignement de la tete qui
     // tranchera seul, comme au premier geste d'une manche.
     int procheChoix = taille + 1;
-    bool rang2Choix = false;
     bool paireChoix = false;
     bool obligeChoix = false;
 
@@ -1903,14 +2006,9 @@ void Bot::defausser() {
             // entre, en fait le tour, revient a son entree et meurt. Disperser
             // sur des circuits differents evite ca ; la proximite ne sert qu'a
             // choisir entre des cases deja equivalentes.
-            // La case de rang 2 du trajet anticipe passe devant tout le reste.
-            // C'est un pari -- elle ne sera sur le trajet que si le rang 1
-            // recoit le type suppose, ce qui arrive 39 % du temps -- mais un
-            // pari SANS PERTE : on ne le prend que sur une case que le plan
-            // reclame deja pour cette piece, donc un pari perdu reste une
-            // defausse ordinaire. A 39 % contre les 31 % que rapporte une
-            // defausse, l'esperance est favorable.
-            bool rang2 = (y * largeur + x) == ancrageDefausse;
+            //
+            // Le rang 2 du trajet anticipe n'est plus departage ici : il est
+            // tranche avant la boucle, sans passer par le plan. Voir le pari.
 
             // Case OBLIGEE : le plan n'y propose pas un type, il constate le
             // seul routage qui survive. Y poser n'est plus une defausse mais de
@@ -1963,9 +2061,7 @@ void Bot::defausser() {
                          || rang < rangChoix
                          || (rang == rangChoix && oblige && !obligeChoix)
                          || (rang == rangChoix && oblige == obligeChoix
-                             && rang2 && !rang2Choix)
-                         || (rang == rangChoix && oblige == obligeChoix
-                             && rang2 == rang2Choix && paire && !paireChoix)
+                             && paire && !paireChoix)
                          // L'eloignement de la tete s'INVERSE sur une case
                          // obligee. Le "au plus loin" protege les defausses
                          // speculatives : une piece isolee a besoin de temps
@@ -1976,10 +2072,9 @@ void Bot::defausser() {
                          // prend tout de suite, et une case gagnee maintenant
                          // plutot qu'une esperance a l'autre bout du plateau.
                          || (rang == rangChoix && oblige == obligeChoix
-                             && rang2 == rang2Choix && paire == paireChoix
+                             && paire == paireChoix
                              && (oblige ? dist < distChoix : dist > distChoix))
                          || (rang == rangChoix && oblige == obligeChoix
-                             && rang2 == rang2Choix
                              && paire == paireChoix && dist == distChoix
                              && proche < procheChoix);
 
@@ -1987,7 +2082,6 @@ void Bot::defausser() {
                 choix = y * largeur + x;
                 rangChoix = rang;
                 obligeChoix = oblige;
-                rang2Choix = rang2;
                 paireChoix = paire;
                 procheChoix = proche;
                 distChoix = dist;
@@ -2019,10 +2113,7 @@ void Bot::defausser() {
     }
 
     if(choix >= 0) {
-        // Poser sur la case visee par l'anticipation, c'est prendre le pari :
-        // on le marque pour pouvoir le distinguer a l'ecran.
-        poserCaseTas(choix % largeur, choix / largeur,
-                     choix == ancrageDefausse ? 3 : 1);
+        poserCaseTas(choix % largeur, choix / largeur);
     }
 }
 
