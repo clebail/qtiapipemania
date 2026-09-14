@@ -71,12 +71,16 @@
 // Temps d'affichage du resultat avant d'enchainer.
 #define PAUSE_REUSSIE           2.5f
 #define PAUSE_PERDUE            3.5f
-// Vies. Trois au depart, plafond neuf. Perdre une manche coute une vie et
-// rejoue le MEME niveau -- meme plateau, meme file, puisque tout derive de
-// (graine de partie, niveau). Les points sont conserves ; seul le game over
-// remet le compteur a zero.
+// Vies. Trois au depart, plafond VIES_MAX (common.h, l'affichage s'en sert
+// aussi). Perdre une manche coute une vie et rejoue le MEME niveau -- meme
+// plateau, meme file, puisque tout derive de (graine de partie, niveau). Les
+// points sont conserves ; seul le game over remet le compteur a zero.
 #define VIES_DEPART             3
-#define VIES_MAX                9
+
+// Bombes : aucune au depart, meme plafond que les vies. Une bombe se gagne a la
+// REUSSITE d'un niveau qui comportait des blocs fixes -- un niveau qu'on ne
+// finit pas ne paie pas, exactement comme la belle manche. Voir BOMBES.md.
+#define BOMBES_DEPART           0
 // Une vie tous les 20 000 points : la seule regle qui ne s'eteigne jamais,
 // puisqu'elle paie proportionnellement au chemin parcouru. Le palier atteint se
 // memorise (voir prochainPalier).
@@ -119,11 +123,18 @@ Partie::Partie(int largeur, int hauteur, quint32 seed) {
     plat = new Game(largeur, hauteur, seed);
     ecoul = new Ecoulement(plat);
     fil = new PieceFile(FILE_SIZE, seed);
+    // Avant nouvellePartie() : nouvelleManche() s'en sert des le premier appel.
+    mines = new Minage(plat, ecoul);
+
+    // De meme, avant nouvellePartie() : c'est elle qui garnit les compteurs.
+    viesDepart = VIES_DEPART;
+    bombesDepart = BOMBES_DEPART;
 
     nouvellePartie(seed);
 }
 
 Partie::~Partie() {
+    delete mines;
     delete ecoul;
     delete plat;
     delete fil;
@@ -138,22 +149,47 @@ void Partie::nouvellePartie() {
 void Partie::setNiveauDepart(int niveau) {
     niveauDepart = qMax(1, niveau);
     niveauCourant = niveauDepart;
+    mines->viderNiveau();
     nouvelleManche();
+}
+
+// Les deux reglages s'appliquent tout de suite au stock courant, et pas
+// seulement a la partie suivante : la manche en cours n'est pas rejouee, donc
+// rien n'oblige a la recommencer pour en profiter.
+void Partie::setViesDepart(int vies) {
+    // Au moins une : a zero, la partie serait finie avant d'avoir commence.
+    viesDepart = qBound(1, vies, VIES_MAX);
+    viesRestantes = viesDepart;
+}
+
+void Partie::setBombesDepart(int bombes) {
+    bombesDepart = qBound(0, bombes, BOMBES_MAX);
+    bombesRestantes = bombesDepart;
 }
 
 void Partie::nouvellePartie(quint32 seed) {
     grainePartie = seed;
     niveauCourant = niveauDepart;
     pointsCourants = 0;
-    viesRestantes = VIES_DEPART;
+    viesRestantes = viesDepart;
+    bombesRestantes = bombesDepart;
     prochainPalier = PALIER_VIE;
     remplacements = 0;
+    mines->viderNiveau();
     nouvelleManche();
 }
 
 void Partie::nouvelleManche() {
     mancheCourante++;
+    // Les bombes posees ne passent pas la manche : le plateau repart vide, et
+    // elles etaient deja decomptees du stock. Celle qui n'a pas eu le temps de
+    // sauter est perdue comme les autres.
+    mines->viderManche();
     plat->reinitialiser(nbCasesBloquees(), grainePour(grainePartie, niveauCourant, CANAL_PLATEAU));
+    // Les blocs deja ouverts ne reviennent pas. La graine est la meme d'un rejeu
+    // a l'autre, donc les blocs retombent aux memes cases : les effacer apres
+    // coup suffit, et Game n'a pas a connaitre l'existence des bombes.
+    mines->appliquerDeminage();
     // La file repart neuve a chaque manche : c'est la condition pour qu'un
     // niveau donne soit identique d'une partie a l'autre.
     fil->reinitialiser(grainePour(grainePartie, niveauCourant, CANAL_FILE));
@@ -217,7 +253,7 @@ bool Partie::passerLaSuite() {
     return true;
 }
 
-void Partie::terminerManche() {
+void Partie::terminerManche(bool mortSubite) {
     int traversees = ecoul->nbCasesTraversees();
 
     // Tout ce que le flux a parcouru compte, et rien d'autre. La manche allant
@@ -227,12 +263,16 @@ void Partie::terminerManche() {
     // compenser une manche coupee avant que le tuyau construit soit parcouru.
     pointsCourants += traversees * POINTS_PAR_CASE;
 
-    bool reussie = traversees >= longueurMinimale();
+    // Une explosion qui emporte un tuyau plein ne laisse pas la longueur
+    // decider : c'est une defaite, meme si l'objectif etait deja atteint. La
+    // manche ne s'est pas arretee d'elle-meme, on l'a fait sauter.
+    bool reussie = !mortSubite && traversees >= longueurMinimale();
 
     // Crediter AVANT de decompter : la manche qui franchit un palier en mourant
     // paie la vie qu'elle est en train de perdre. L'ordre inverse condamnerait
     // sur un game over des points deja gagnes.
     crediterVies(traversees, reussie);
+    crediterBombes(reussie);
 
     if(reussie) {
         etatCourant = epReussie;
@@ -247,6 +287,26 @@ void Partie::terminerManche() {
 
 void Partie::gagnerVie() {
     viesRestantes = qMin(VIES_MAX, viesRestantes + 1);
+}
+
+void Partie::gagnerBombe() {
+    bombesRestantes = qMin(BOMBES_MAX, bombesRestantes + 1);
+}
+
+// Une bombe par niveau REUSSI qui comportait des blocs fixes. Le niveau 1 n'en
+// compte aucun (nbCasesBloquees() vaut zero), il ne paie donc pas ; a partir du
+// deuxieme c'est une bombe par niveau, et le stock sature vers le dixieme --
+// passe ce point, tout niveau traverse sans depenser perd ce qu'il rapportait.
+//
+// Reussi seulement, et pour la raison qui vaut deja pour la belle manche : sur
+// une manche perdue, le rejeu a l'identique rendrait la bombe indefiniment.
+//
+// Le niveau n'a pas encore change quand terminerManche() appelle : nbCasesBloquees()
+// decrit bien celui qu'on vient de finir.
+void Partie::crediterBombes(bool reussie) {
+    if(reussie && nbCasesBloquees() > 0) {
+        gagnerBombe();
+    }
 }
 
 void Partie::crediterVies(int traversees, bool reussie) {
@@ -266,6 +326,11 @@ void Partie::crediterVies(int traversees, bool reussie) {
 void Partie::avancer(float dt) {
     switch(etatCourant) {
     case epAttente:
+        // Les bombes tournent des la pose, donc avant le depart du flux. Le
+        // verdict est ignore et ne peut pas mentir : rien n'est encore rempli,
+        // c'est meme la fenetre ou bomber ne risque rien.
+        mines->avancer(dt);
+
         tempsAvantDepart -= dt;
 
         if(tempsAvantDepart <= 0.0f) {
@@ -283,6 +348,13 @@ void Partie::avancer(float dt) {
         // des cases libres, et il y en a un nombre fini.
         if(etatFlux != eEnCours) {
             terminerManche();
+            break;
+        }
+
+        // Les bombes apres le flux, et seulement si la manche court encore :
+        // une manche deja finie ne se perd plus.
+        if(mines->avancer(dt)) {
+            terminerManche(true);
         }
         break;
     }
@@ -299,6 +371,9 @@ void Partie::avancer(float dt) {
         if(tempsAvantSuite <= 0.0f) {
             if(etatCourant == epReussie) {
                 niveauCourant++;
+                // Le deminage tombe avec le niveau qui l'a paye : il ne valait
+                // que pour ses rejeux.
+                mines->viderNiveau();
                 nouvelleManche();
             } else if(etatCourant == epPerdue) {
                 // Points conserves, niveau inchange : le rejeu redonne le meme
@@ -324,9 +399,42 @@ bool Partie::peutPoser(int col, int row) const {
     ETypePiece actuelle = plat->getTypePiece(col, row);
 
     // Case deja traversee par le fluide, reservoir, obstacle : intouchables.
+    // Une bombe armee aussi : tant qu'elle n'a pas saute, elle occupe sa case
+    // comme un bloc -- le flux ne la traverse pas et on ne pose rien dessus.
     return !ecoul->estRempli(col, row)
            && actuelle != tpReservoir
-           && actuelle != tpBloque;
+           && actuelle != tpBloque
+           && actuelle != tpBombe;
+}
+
+// Le stock est une regle, la case une geometrie : les deux refus ne sont pas
+// au meme endroit, et celui du stock doit passer en premier -- sinon une bombe
+// serait posee avant qu'on s'apercoive qu'il n'y en avait plus.
+bool Partie::peutMiner(int col, int row) const {
+    if(col < 0 || col >= plat->getLargeur() || row < 0 || row >= plat->getHauteur()) {
+        return false;
+    }
+
+    // Pendant la pause de fin de manche, il n'y a plus rien a miner.
+    return bombesRestantes > 0
+           && (etatCourant == epAttente || etatCourant == epEcoulement)
+           && plat->getTypePiece(col, row) == tpNone;
+}
+
+bool Partie::poserBombe(int col, int row) {
+    if(!peutMiner(col, row)) {
+        return false;
+    }
+
+    // Minage::poser refait le test de la case pour son compte : il est
+    // autonome, et rien ne garantit qu'on l'appellera toujours d'ici.
+    if(!mines->poser(col, row)) {
+        return false;
+    }
+
+    bombesRestantes--;
+
+    return true;
 }
 
 bool Partie::poserPiece(int col, int row) {
@@ -357,6 +465,10 @@ EEtatPartie Partie::etat() const {
 
 int Partie::vies() const {
     return viesRestantes;
+}
+
+int Partie::bombes() const {
+    return bombesRestantes;
 }
 
 int Partie::numeroManche() const {
@@ -401,6 +513,10 @@ float Partie::fractionAvantDepart() const {
 
 Game* Partie::plateau() const {
     return plat;
+}
+
+Minage* Partie::minage() const {
+    return mines;
 }
 
 Ecoulement* Partie::ecoulement() const {

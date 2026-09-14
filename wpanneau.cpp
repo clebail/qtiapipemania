@@ -7,6 +7,31 @@
 // gagnee sert a afficher le score en gros.
 #define LARGEUR_PANNEAU     (tailleCase() * 2)
 
+// Vies et bombes s'affichent en DEUX rangees de cinq. C'est ce decoupage, et
+// lui seul, qui donne aux icones leur taille : le pas se calcule sur la largeur
+// du panneau divisee par une rangee, donc cinq par rangee au lieu de dix les
+// fait deux fois plus grosses. Le prix est deux rangees de haut, et le bloc
+// d'information a la place.
+#define PAR_RANGEE          5
+#define RANGEES             2
+
+// Les deux plafonds remplissent la grille exactement : une case vide au bout de
+// la derniere rangee se lirait comme une ressource manquante.
+static_assert(VIES_MAX == PAR_RANGEE * RANGEES, "le plafond des vies ne remplit plus les rangees du panneau");
+static_assert(BOMBES_MAX == PAR_RANGEE * RANGEES, "le plafond des bombes ne remplit plus les rangees du panneau");
+
+// Centre de la i-eme icone d'une serie de n, disposee en rangees de PAR_RANGEE.
+// Les rangees se remplissent de haut en bas, et chacune est centree pour elle
+// meme : une derniere rangee incomplete reste sous le milieu du panneau.
+static QPointF placeIcone(int i, int n, qreal largeur, qreal pas, qreal y) {
+    int rangee = i / PAR_RANGEE;
+    int colonne = i % PAR_RANGEE;
+    int surLaRangee = qMin(n - rangee * PAR_RANGEE, PAR_RANGEE);
+
+    return QPointF((largeur - surLaRangee * pas) / 2.0 + pas / 2.0 + colonne * pas,
+                   y + rangee * pas + pas / 2.0);
+}
+
 WPanneau::WPanneau(QWidget *parent)
     : QWidget{parent}
 {
@@ -111,29 +136,29 @@ int WPanneau::dessinerNiveau(QPainter& painter, int y) {
 
 // Vies restantes, en coeurs, sous le numero de niveau.
 //
-// Le pas est calcule pour que les NEUF coeurs du plafond tiennent sur une seule
-// rangee, et la rangee garde sa hauteur meme a zero vie : le bloc d'information
-// ne doit pas se decaler d'un cran chaque fois qu'une vie se gagne ou se perd,
-// sans quoi c'est tout le panneau qui sautille en pleine manche.
+// Le pas est calcule sur CINQ coeurs dans la largeur utile, et les dix du
+// plafond tiennent sur deux rangees. Les deux rangees sont toujours comptees,
+// meme a zero vie : le bloc d'information ne doit pas se decaler d'un cran
+// chaque fois qu'une vie se gagne ou se perd, sans quoi c'est tout le panneau
+// qui sautille en pleine manche.
 int WPanneau::dessinerVies(QPainter& painter, int y) {
     static const QColor cCoeur(0xe8, 0x48, 0x58);
 
-    // Neuf pas dans la largeur utile, et un coeur un peu plus etroit que son pas
+    // Cinq pas dans la largeur utile, et un coeur un peu plus etroit que son pas
     // pour que deux voisins ne se touchent pas.
-    qreal pas = (width() - 12) / 9.0;
+    qreal pas = (width() - 12) / (qreal)PAR_RANGEE;
     qreal r = qMax(3.0, pas * 0.36);
-    int n = qBound(0, partie->vies(), 9);
+    int n = qBound(0, partie->vies(), VIES_MAX);
 
     if(n > 0) {
-        qreal x = (width() - n * pas) / 2.0 + pas / 2.0;
-        qreal cy = y + pas / 2.0;
-
         painter.save();
         painter.setPen(Qt::NoPen);
         painter.setBrush(cCoeur);
 
         for(int i = 0; i < n; i++) {
-            qreal cx = x + i * pas;
+            QPointF centre = placeIcone(i, n, width(), pas, y);
+            qreal cx = centre.x();
+            qreal cy = centre.y();
 
             // Deux lobes et une pointe : la pointe est le point de depart et
             // d'arrivee, les deux courbes remontent chacune d'un cote.
@@ -148,7 +173,54 @@ int WPanneau::dessinerVies(QPainter& painter, int y) {
         painter.restore();
     }
 
-    return (int)(pas + 0.5);
+    return (int)(RANGEES * pas + 0.5);
+}
+
+// Bombes en stock, en coeurs -- non, justement : en bombes, et c'est tout le
+// propos. Meme pas et meme calibrage que dessinerVies, les DIX du plafond sur
+// deux rangees de cinq, hauteur constante pour que le bloc d'information ne
+// saute pas d'un cran quand le stock change.
+//
+// Corps clair et meche ambre. BOMBES.md dit "corps anthracite" : le panneau est
+// sur fond noir, l'anthracite n'y survivrait pas. Ce qui compte est tenu --
+// l'oeil doit lire "objet", pas "vie", donc surtout pas un coeur de plus.
+int WPanneau::dessinerBombes(QPainter& painter, int y) {
+    static const QColor cCorps(0x8e, 0x98, 0xb8);
+    static const QColor cMeche(0xf0, 0x9a, 0x2c);
+
+    // Rayon un peu plus petit que celui des coeurs : la meche depasse du corps,
+    // et c'est elle qui fixe l'encombrement reel de l'icone.
+    qreal pas = (width() - 12) / (qreal)PAR_RANGEE;
+    qreal r = qMax(3.0, pas * 0.30);
+    int n = qBound(0, partie->bombes(), BOMBES_MAX);
+
+    if(n > 0) {
+        painter.save();
+
+        for(int i = 0; i < n; i++) {
+            QPointF centre = placeIcone(i, n, width(), pas, y);
+            qreal cx = centre.x();
+            qreal cy = centre.y();
+
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(cCorps);
+            painter.drawEllipse(QPointF(cx, cy + r * 0.2), r, r);
+
+            // La meche part de l'epaule droite et se recourbe vers le haut :
+            // une seule courbe, c'est tout ce qui se lit a cette taille.
+            QPainterPath meche;
+            meche.moveTo(cx + r * 0.55, cy - r * 0.55);
+            meche.quadTo(cx + r * 1.5, cy - r * 1.1, cx + r * 0.9, cy - r * 1.8);
+
+            painter.setBrush(Qt::NoBrush);
+            painter.setPen(QPen(cMeche, qMax(1.0, r * 0.34), Qt::SolidLine, Qt::RoundCap));
+            painter.drawPath(meche);
+        }
+
+        painter.restore();
+    }
+
+    return (int)(RANGEES * pas + 0.5);
 }
 
 // Un compteur du bloc d'etat : libelle terne, valeur claire, sur une ligne
@@ -355,7 +427,10 @@ void WPanneau::paintEvent(QPaintEvent *) {
     // Bloc d'information sous la file : niveau, score, etat de la manche.
     int y = (taille + 1) * spriteH + 6;
     y += dessinerNiveau(painter, y) + 2;
-    y += dessinerVies(painter, y) + 4;
+    // Les deux rangees de ressources sont collees l'une a l'autre : elles
+    // forment un bloc, et l'espace est garde pour le separer du score.
+    y += dessinerVies(painter, y) + 2;
+    y += dessinerBombes(painter, y) + 4;
     dessinerScore(painter, y);
     dessinerEtat(painter, y + hauteurScore + 10, tailleChiffres);
 }

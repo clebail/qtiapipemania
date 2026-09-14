@@ -202,6 +202,9 @@ protected:
     static bool memeRoutage(const ETypePiece& pose, const ETypePiece& voulu);
     // Empreinte des types poses sur le plateau : sert a ne refaire le marquage
     // que quand quelque chose a bouge.
+    // Retire du tas les cases qu'une explosion a videes : la marque ne doit pas
+    // survivre a la piece. Appelee des que le plateau bouge.
+    void oublierTasDetruit();
     quint32 signaturePlateau() const;
     // Recolle les circuits courts du plan en circuits longs. Voir le
     // commentaire dans construirePlan : c'est la longueur, pas la cloture, qui
@@ -217,6 +220,26 @@ protected:
     // ouvertureLocale/7 est la probabilite que la prochaine piece piochee soit
     // posable directement -- une mesure de "a quel point cette tete est ouverte".
     int ouvertureLocale(int col, int row, ESens entree) const;
+    // Reprendre cette case CHANGERAIT-IL quelque chose ? Vrai s'il existe un
+    // type compatible avec `entree`, qui ne condamne pas, et qui envoie le flux
+    // AILLEURS que la piece deja posee. Reserve aux cases du tas qu'on envisage
+    // de remplacer : la question n'y est pas "reste-t-il une issue" -- la piece
+    // en place en est une -- mais "une AUTRE issue". Voir reculerSurUnRebut.
+    bool issueNouvelle(int col, int row, ESens entree) const;
+    // Croiser son PROPRE tuyau. Vrai quand cette case porte un horizontal ou un
+    // vertical du TRACE (pas du tas), que le fluide n'a pas encore rempli, et
+    // que le trace l'aborde par un cote perpendiculaire a son axe : une croix y
+    // passe sans toucher a l'axe deja pose, donc sans defaire ce qui est
+    // construit. C'est le seul remplacement de ce genre qui soit sur.
+    //
+    // Pure geometrie : ne dit pas si le coup est OPPORTUN. Voir tete() pour la
+    // condition de la croix en main, et espaceApres pour ce qu'on n'en fait
+    // surtout pas.
+    bool croisable(int col, int row, ESens entree) const;
+    // Une croix quelque part dans la file ? Un croisement ne s'ouvre qu'a cette
+    // condition : c'est le seul type qui s'y pose, et l'attendre sans l'avoir
+    // coute la manche.
+    bool croixEnFile() const;
     // Nombre de cases vides (tpNone) -- et, si `inclureTas` est vrai, du tas
     // aussi -- atteignables en 4-connexite depuis cette case, elle comprise si
     // elle compte. inclureTas vaut vrai par defaut : une case du tas n'est pas
@@ -261,9 +284,17 @@ protected:
     // elles ne sont donc pas de la place disponible. Sans elles, la meme place
     // etait comptee deux fois : une fois comme chemin a venir, une fois comme
     // reserve pour la suite.
+    // `sansRepli` coupe le rattrapage : quand la marche bute, elle ne revient
+    // pas reprendre un rebut deja traverse pour repartir de la. C'est ce qu'il
+    // faut pour juger une pose ANTICIPEE -- le repli y signifie "ce coup est
+    // bon puisque je pourrai revenir defaire ce que je viens de poser", ce qui
+    // n'est pas un sauvetage mais un aveu, et se paie 25 points pour revenir au
+    // point de depart. La tete, elle, garde son repli : une fois engage, s'en
+    // sortir en reprenant un rebut est legitime.
     int espaceApres(const ETypePiece& type, int col, int row, ESens entree,
                     int maxi = 0, QVector<unsigned char> *cases = nullptr,
-                    const QVector<int> *reservees = nullptr) const;
+                    const QVector<int> *reservees = nullptr,
+                    bool sansRepli = false) const;
     // Vrai quand aucune piece ne peut prolonger la tete (ouvertureLocale == 0) :
     // attendre une meilleure pioche ne sert plus a rien, la manche est jouee ici.
     bool teteCondamnee(int col, int row, ESens entree) const;
@@ -304,6 +335,11 @@ protected:
     // presse encore. Un bot s'en sert pour savoir s'il a encore le luxe de
     // defausser une piece plutot que de la poser.
     bool acculeParLeFlux(float margeGestes) const;
+    // Pose une bombe sur cette case et la retire du stock. Elle est perdue
+    // pour de bon : ni rendue a l'explosion, ni au rejeu, ni si la manche finit
+    // avant qu'elle ait saute. False si le stock est vide, si la manche est
+    // finie, ou si la case n'est pas TOTALEMENT vide. Voir BOMBES.md.
+    bool poserBombe(int col, int row);
     // Pose la piece du haut de la file sur cette case precise et l'inscrit au
     // tas. Renvoie false si la pose est refusee. Sert a placer d'avance une
     // piece sur une case que le trace n'a pas encore atteinte.
@@ -371,9 +407,28 @@ private:
     QVector<unsigned char> entreeTete;
     // Refait des que le plateau bouge -- voir planObligatoire.
     QVector<unsigned char> oblige;
+    // La case a bomber : celle dont le souffle emporte le plus de blocs. Seul
+    // critere de ciblage depuis la mesure du 2026-09-17 -- voir le commentaire
+    // dans bot.cpp pour ce qu'il a remplace et ce que ca vaut.
+    bool choisirPaquetDeBlocs(int &col, int &row) const;
+    // Pose la bombe du rejeu, et refait le plan quand elle a saute. Appelee a
+    // chaque battement, avant jouer().
+    void gererBombes();
+
     // Etat du plateau au dernier marquage, pour ne pas le refaire pour rien.
     quint32 signatureVue = 0;
     int mancheVue;
+    int niveauVu;
+    // Essais du niveau courant, celui-ci compris : 1 au premier passage, 2 au
+    // premier rejeu. C'est lui qui dit au bot qu'il rejoue.
+    int essaisNiveau = 1;
+    // La bombe de cet essai est posee. Une par essai (BOMBES.md §C) : le rejeu
+    // suivant en reposera une, sur le terrain que celle-ci aura deja ouvert.
+    bool bombeCetEssai = false;
+    // Case de la bombe tant qu'elle n'a pas saute, -1 sinon. Des qu'elle saute,
+    // le plan de defausse est perime : il a ete calcule sur des blocs qui
+    // n'existent plus.
+    int bombeEnVol = -1;
     // Barre d'espace demandee. Comme pour le joueur, sans retour : ne retombe
     // qu'a la manche suivante, quand la graine de plateau change.
     bool fonce = false;

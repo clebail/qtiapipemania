@@ -1,8 +1,35 @@
 #include "mainwindow.h"
 
+#include <climits>
+
 #include <QApplication>
 #include <QLocale>
 #include <QTranslator>
+
+// Lit une option entiere de la ligne de commande. Renvoie false -- et ne touche
+// pas a `valeur` -- si l'option est absente, sans argument, ou hors des bornes :
+// une faute de frappe laisse le reglage par defaut plutot que de tordre la
+// partie en silence.
+static bool lireEntier(const QStringList &args, const QString &nom,
+                       int min, int max, int *valeur) {
+    int pos = args.indexOf(nom);
+
+    if(pos < 0 || pos + 1 >= args.size()) {
+        return false;
+    }
+
+    bool ok = false;
+    int lu = args.at(pos + 1).toInt(&ok);
+
+    if(!ok || lu < min || lu > max) {
+        qWarning("%s attend un entier entre %d et %d, recu \"%s\"",
+                 qPrintable(nom), min, max, qPrintable(args.at(pos + 1)));
+        return false;
+    }
+
+    *valeur = lu;
+    return true;
+}
 
 int main(int argc, char *argv[])
 {
@@ -19,15 +46,20 @@ int main(int argc, char *argv[])
     }
     MainWindow w;
 
-    // Deux options de mise au point, a poser dans cet ordre : la graine refait
-    // la partie, le niveau choisit ou l'on y entre.
+    // Quatre options de mise au point, a poser dans cet ordre : la graine refait
+    // la partie, les trois autres disent ou l'on y entre.
     //
     //   --graine N   rejoue exactement cette partie
     //   --niveau N   demarre au niveau N plutot qu'au premier
+    //   --vies N     demarre avec N vies (1 a VIES_MAX) au lieu de trois
+    //   --bombes N   demarre avec N bombes (0 a BOMBES_MAX) au lieu d'aucune
     //
     // A graine et niveau egaux, le plateau et la file sont identiques a la case
     // pres : c'est ce qui permet de revoir une manche qui s'est mal passee au
-    // lieu d'attendre qu'elle se represente.
+    // lieu d'attendre qu'elle se represente. Vies et bombes, elles, ne changent
+    // ni le plateau ni la file : elles ne font que placer la partie dans l'etat
+    // qu'on veut observer -- la derniere vie, le stock plein -- sans avoir a
+    // jouer ce qui y aurait mene.
     const QStringList args = QCoreApplication::arguments();
 
     int posGraine = args.indexOf("--graine");
@@ -44,18 +76,24 @@ int main(int argc, char *argv[])
         }
     }
 
-    int posNiveau = args.indexOf("--niveau");
+    int niveau = 0;
 
-    if(posNiveau >= 0 && posNiveau + 1 < args.size()) {
-        bool ok = false;
-        int niveau = args.at(posNiveau + 1).toInt(&ok);
+    if(lireEntier(args, "--niveau", 1, INT_MAX, &niveau)) {
+        w.setNiveauDepart(niveau);
+    }
 
-        if(ok && niveau >= 1) {
-            w.setNiveauDepart(niveau);
-        } else {
-            qWarning("--niveau attend un entier >= 1, recu \"%s\"",
-                     qPrintable(args.at(posNiveau + 1)));
-        }
+    // Apres --graine : celle-ci repart sur une partie neuve, donc sur les vies
+    // et les bombes du depart.
+    int vies = 0;
+
+    if(lireEntier(args, "--vies", 1, VIES_MAX, &vies)) {
+        w.setVies(vies);
+    }
+
+    int bombes = 0;
+
+    if(lireEntier(args, "--bombes", 0, BOMBES_MAX, &bombes)) {
+        w.setBombes(bombes);
     }
 
     // La graine n'est plus annoncee ici mais a chaque manche, par la fenetre :

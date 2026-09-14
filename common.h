@@ -18,6 +18,18 @@
 // passe sous le bord de l'ecran, et les bots avec.
 int tailleCase();
 
+// Plafonds des deux ressources. Ici plutot que dans partie.cpp parce que le
+// panneau en a autant besoin que la regle : c'est dessus qu'il calibre ses
+// rangees d'icones, et un plafond qui bougerait sans que l'affichage suive
+// donnerait une rangee a moitie vide ou des icones qui debordent.
+//
+// Dix, et non neuf : le panneau les montre sur DEUX rangees de cinq
+// (WPanneau::dessinerVies), ce qui double la taille des icones a largeur de
+// panneau egale. Le plafond vaut donc exactement 5 x 2, et wpanneau.cpp le
+// verifie a la compilation.
+#define VIES_MAX                    10
+#define BOMBES_MAX                  10
+
 typedef enum _ETypePiece {
     tpNone, tpReservoir, tpHorizontal, tpVertical, tpCoudeHautGauche, tpCoudeHautDroite, tpCoudeBasGauche, tpCoudeBasDroite, tpCroix, tpBombe, tpBloque
 } ETypePiece;

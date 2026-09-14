@@ -22,6 +22,11 @@ public:
     // Rejoue la partie de cette graine (--graine). A graine et niveau egaux,
     // le plateau et la file sont identiques a la case pres.
     void setGraine(quint32 graine);
+    // Vies et bombes de depart (--vies, --bombes) : de quoi se placer d'emblee
+    // dans la situation qu'on veut regarder -- une derniere vie, un stock de
+    // bombes plein -- sans jouer la partie qui y menerait.
+    void setVies(int vies);
+    void setBombes(int bombes);
     // Graine de la partie en cours, a noter pour la rejouer.
     quint32 graine() const;
     ~MainWindow();
@@ -44,10 +49,11 @@ private:
     // Fige la partie : battement() ne fait plus rien tant qu'elle est vraie.
     // Sert a immobiliser l'ecran (bot compris) le temps d'une copie d'ecran.
     bool enPause = false;
-    // Derniere manche annoncee, pour ne l'annoncer qu'une fois. Le couple
-    // (graine de partie, niveau) suffit a rejouer une manche a l'identique.
-    quint32 graineAnnoncee = 0;
-    int niveauAnnonce = 0;
+    // Derniere manche annoncee, pour ne l'annoncer qu'une fois. Son NUMERO, et
+    // non le couple (graine, niveau) : la manche perdue rejoue le meme niveau
+    // de la meme partie, et le couple ne bougeant pas, le rejeu passait sous
+    // silence -- avec lui les vies, qui viennent justement d'en perdre une.
+    int mancheAnnoncee = -1;
     QTimer horloge;
 
     void rafraichir();
@@ -82,6 +88,10 @@ private slots:
     // connectee explicitement, pas via connectSlotsByName.
     void battement();
     void pieceDeposee(int col, int row, bool accepte);
+    // Un clic droit dans la grille. Rien a animer -- la bombe ne vient pas de
+    // la file -- mais le stock a pu changer, et le panneau ne se repeint pas de
+    // lui-meme pendant l'ecoulement.
+    void bombePosee(int col, int row, bool accepte);
     void on_pbGlouton_clicked();
     void on_pbSpace_clicked();
     void on_pbSpaceAnticp_clicked();

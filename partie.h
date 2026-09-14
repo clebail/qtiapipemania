@@ -7,6 +7,7 @@
 #include "game.h"
 #include "ecoulement.h"
 #include "piecefile.h"
+#include "minage.h"
 
 // Cycle de jeu et regles : deroulement d'une manche, score, conditions de
 // reussite. Classe simple comme Game et Ecoulement : pas de timer interne, la
@@ -29,6 +30,13 @@ public:
     // difficile, sans avoir a jouer les huit precedentes. La partie perdue
     // repart au meme niveau, sinon l'outil ne servirait qu'une fois.
     void setNiveauDepart(int niveau);
+    // Vies et bombes du depart de partie (--vies, --bombes). Meme role que
+    // setNiveauDepart : regler la fin de vie du bot demande de la voir se
+    // produire, et l'attendre depuis trois vies et zero bombe coute une partie
+    // entiere par essai. La valeur tient pour la partie en cours ET pour celles
+    // qui la suivent, sans quoi l'outil ne servirait qu'une fois.
+    void setViesDepart(int vies);
+    void setBombesDepart(int bombes);
     void avancer(float dt);
 
     // Lance le flux sans attendre la fin du delai, contre une prime. Le joueur
@@ -48,6 +56,16 @@ public:
     // Pose la piece du haut de la file. Renvoie false si le coup est refuse,
     // auquel cas la file n'est pas depilee.
     bool poserPiece(int col, int row);
+    // Le minage est-il permis ici ? Stock non vide, manche en cours, et case
+    // TOTALEMENT vide. Les trois refus sont reunis ici plutot que dans la
+    // grille : celle-ci ne fait que traduire un clic, et l'affichage du souffle
+    // au survol doit poser exactement la meme question que le clic.
+    bool peutMiner(int col, int row) const;
+    // Pose une bombe sur une case totalement vide et la retire du stock. Elle
+    // est perdue pour de bon : elle ne revient ni a l'explosion, ni au rejeu,
+    // ni si la manche se finit avant qu'elle ait saute. False si le stock est
+    // vide, si la manche est finie, ou si la case n'est pas libre.
+    bool poserBombe(int col, int row);
 
     EEtatPartie etat() const;
     int score() const;
@@ -56,6 +74,10 @@ public:
     // voit qu'a l'etat epGameOver : tant qu'il en reste une, la manche perdue
     // se rejoue.
     int vies() const;
+    // Bombes en stock. Une par niveau reussi comportant des blocs fixes,
+    // plafond BOMBES_MAX comme les vies, et jamais rendues une fois posees.
+    // Voir BOMBES.md.
+    int bombes() const;
     int casesTraversees() const;
 
     int longueurMinimale() const;
@@ -83,6 +105,9 @@ public:
 
     Game* plateau() const;
     Ecoulement* ecoulement() const;
+    // Les bombes posees et les blocs qu'elles ont ouverts : la grille y lit le
+    // compte a rebours a dessiner.
+    Minage* minage() const;
     PieceFile* file() const;
 
     int getXDepart() const;
@@ -97,6 +122,7 @@ private:
     Game *plat = nullptr;
     Ecoulement *ecoul = nullptr;
     PieceFile *fil = nullptr;
+    Minage *mines = nullptr;
     EEtatPartie etatCourant = epAttente;
     quint32 grainePartie = 0;
     int niveauCourant = 1;
@@ -104,6 +130,11 @@ private:
     int mancheCourante = 0;
     int pointsCourants = 0;
     int viesRestantes = 0;
+    int bombesRestantes = 0;
+    // Ce dont une partie neuve part. Regles par la ligne de commande, sinon
+    // VIES_DEPART et BOMBES_DEPART (partie.cpp).
+    int viesDepart = 0;
+    int bombesDepart = 0;
     // Points a atteindre pour la prochaine vie de rythme. Il MONTE et ne
     // redescend jamais : le score, lui, descend de 25 a chaque ecrasement, donc
     // sans ce cliquet la meme barre se paierait plusieurs fois par partie
@@ -117,12 +148,20 @@ private:
     float dureeRemplissageNiveau() const;
     float delaiDepartNiveau() const;
     void lancerEcoulement();
-    void terminerManche();
+    // `mortSubite` : la manche n'a pas fini d'elle-meme, une explosion a
+    // emporte un tuyau plein. C'est une defaite franche, meme si le flux avait
+    // deja depasse l'objectif -- on s'est tue soi-meme.
+    void terminerManche(bool mortSubite = false);
     // Vies gagnees en fin de manche : les paliers de points, et la belle
     // manche. Appelee avant de decompter la vie perdue, pour qu'une manche qui
     // finit bien puisse payer la defaite qu'elle vient de subir.
     void crediterVies(int traversees, bool reussie);
     void gagnerVie();
+    // Bombe gagnee en fin de manche : une par niveau reussi qui comportait des
+    // blocs fixes. Appelee au meme endroit que crediterVies, avant le decompte
+    // de la vie perdue.
+    void crediterBombes(bool reussie);
+    void gagnerBombe();
 };
 
 #endif // PARTIE_H

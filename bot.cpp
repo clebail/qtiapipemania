@@ -646,6 +646,22 @@ void Bot::construirePlan() {
 // De quoi voir en un entier que le plateau a bouge. Le compte des cases
 // occupees ne suffirait pas : un remplacement change le type sans changer le
 // compte, et il rouvre ou referme des issues comme une pose.
+// Une explosion emporte les rebuts comme le reste, et le bot n'en sait rien :
+// sa marque de tas survivrait a la case. Un tas sur une case vide ment deux
+// fois -- a l'overlay, qui hachure du vide, et a Bot::tete(), qui croit avoir
+// un rebut a reprendre la ou il n'y a plus rien.
+//
+// Balayage complet, mais seulement quand le plateau a bouge : c'est le meme
+// declencheur que les obligations, et pour la meme raison.
+void Bot::oublierTasDetruit() {
+    for(int i = 0; i < tas.size(); i++) {
+        if(tas.at(i) != 0
+           && p->plateau()->getTypePiece(i % p->getLargeur(), i / p->getLargeur()) == tpNone) {
+            tas[i] = 0;
+        }
+    }
+}
+
 quint32 Bot::signaturePlateau() const {
     quint32 h = 2166136261u;
 
@@ -1014,8 +1030,6 @@ void Bot::marquerObligations() {
 
     oblige.fill(0, largeur * hauteur);
 
-    int marquees = 0;
-
     for(int y = 0; y < hauteur; y++) {
         for(int x = 0; x < largeur; x++) {
             ETypePiece voulu = planType(x, y);
@@ -1123,12 +1137,9 @@ void Bot::marquerObligations() {
 
             if(obligee) {
                 oblige[y * largeur + x] = 1;
-                marquees++;
             }
         }
     }
-
-    qDebug() << "cases obligees :" << marquees;
 }
 
 int Bot::nbBloquees() const {
@@ -1150,6 +1161,9 @@ Bot::Bot(Partie *p, float cadence, quint32 seed) {
 
     tas.fill(0, p->getLargeur() * p->getHauteur());
     mancheVue = p->numeroManche();
+    // Le constructeur ne passe pas par le changement de manche : la manche en
+    // cours est deja le premier essai de son niveau.
+    niveauVu = p->niveau();
     construirePlan();
 }
 
@@ -1165,6 +1179,17 @@ void Bot::avancer(float dt) {
         mancheVue = manche;
         tas.fill(0, p->getLargeur() * p->getHauteur());
         fonce = false;
+
+        if(p->niveau() != niveauVu) {
+            niveauVu = p->niveau();
+            essaisNiveau = 0;
+        }
+
+        // Meme niveau, manche neuve : c'est un rejeu, et le bot vient de payer
+        // une vie pour lui.
+        essaisNiveau++;
+        bombeCetEssai = false;
+        bombeEnVol = -1;
 
         // Le plateau a change : le plan aussi. Il est calcule sur les cases
         // bloquees de cette manche-la, donc il ne survit pas a la suivante.
@@ -1192,8 +1217,11 @@ void Bot::avancer(float dt) {
 
     if(signature != signatureVue) {
         signatureVue = signature;
+        oublierTasDetruit();
         marquerObligations();
     }
+
+    gererBombes();
 
     jouer(dt);
 }
@@ -1243,6 +1271,76 @@ int Bot::ouvertureLocale(int col, int row, ESens entree) const {
     return ouvertes;
 }
 
+// Une case deja occupee a deja une issue : celle de la piece qui s'y trouve.
+// La compter, c'est repondre oui a la question "peut-on faire autrement ici ?"
+// en montrant precisement ce qu'on fait deja. Le repli sur un rebut y perdait
+// la manche : il rendait une case dont le seul type survivant etait celui qui y
+// etait pose, donc celui qui menait au cul-de-sac dont on venait de fuir. Le
+// bot reposait la meme piece au meme endroit -- 25 points le geste, la tete
+// revenait, et ca tournait jusqu'a ce que le flux le rattrape.
+//
+// On compare donc les SORTIES, pas les types : deux types differents qui
+// envoient le flux du meme cote ne sont pas deux issues, c'est la meme.
+bool Bot::issueNouvelle(int col, int row, ESens entree) const {
+    Game *plateau = p->plateau();
+    // La sortie actuelle. Vide veut dire que la piece posee n'accepte meme pas
+    // ce cote -- un rebut en travers : tout type qui se raccorde est alors un
+    // vrai changement, et on retombe sur ouvertureLocale.
+    QVector<ESens> posee = Ecoulement::sorties(plateau->getTypePiece(col, row),
+                                               plateau->getSens(col, row), entree);
+
+    foreach(ETypePiece type, Ecoulement::piecesCompatibles(entree)) {
+        QVector<ESens> issue = Ecoulement::sorties(type, sHaut, entree);
+
+        if(issue.isEmpty() || meneALaMort(type, col, row, entree)) {
+            continue;
+        }
+
+        if(posee.isEmpty() || issue.first() != posee.first()) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// Croiser son propre tuyau : le coup que le bot ne savait pas enumerer. La
+// regle l'autorise (peutPoser ne refuse que le rempli, le reservoir, les blocs
+// et les bombes armees) et une croix posee sur un horizontal ou un vertical
+// garde l'axe existant ouvert -- le trajet deja construit est intact, on ajoute
+// la traversee perpendiculaire.
+//
+// CE QU'ON N'EN FAIT PAS, et c'est le coeur de l'affaire : espaceApres continue
+// d'y voir un mur. Compter un croisement comme un passage revient a planifier
+// une route qui exige une piece sur sept ; mesure au banc, 600 parties
+// appariees : -8,3 niveaux ainsi, -12,2 en tentant de le rattraper par un
+// garde-fou place dans cette fonction (l'estimation de place se mettait alors a
+// clignoter au rythme de la file). Le croisement est une OCCASION qu'on saisit
+// quand la tete tombe dessus, jamais un chemin qu'on emprunte.
+bool Bot::croisable(int col, int row, ESens entree) const {
+    Game *plateau = p->plateau();
+    ETypePiece t = plateau->getTypePiece(col, row);
+
+    if((t != tpHorizontal && t != tpVertical) || estTas(col, row)
+       || !p->peutPoser(col, row)) {
+        return false;
+    }
+
+    // Perpendiculaire, c'est-a-dire : la piece en place ne s'ouvre pas de ce
+    // cote. Sinon le flux y entre deja et il n'y a rien a croiser.
+    return !Ecoulement::ouvertures(t, plateau->getSens(col, row)).contains(entree);
+}
+
+bool Bot::croixEnFile() const {
+    for(int r = 0; r < p->file()->getTaille(); r++) {
+        if(p->file()->getPiece(r).type == tpCroix) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool Bot::teteCondamnee(int col, int row, ESens entree) const {
     return ouvertureLocale(col, row, entree) == 0;
 }
@@ -1276,13 +1374,22 @@ int Bot::objectifRestant() const {
 // Ce qu'on garde en reserve AU-DELA du strict necessaire, quand l'objectif est
 // presque atteint. Voir culDeSac.
 //
-// Valeur choisie au banc, 300 parties par point : 15,64 de niveau moyen sans
-// coussin (l'exigence restait bloquee a 40), 15,78 a 5, 16,04 a 10, 15,88 a 20,
-// et retour a 15,64 des 40 -- au-dela du plancher le coussin ne borne plus
-// rien. Le creux a 5 dit qu'il faut garder une vraie reserve ; le repli a 20
-// dit qu'en exiger trop revient au defaut d'origine.
+// Rebalaye le 2026-09-16 sur le bot d'aujourd'hui (35,04 de niveau moyen), 200
+// parties par point puis 600 sur les deux finalistes. La valeur de 10 venait
+// d'un balayage fait sur un bot a 16 de moyenne : elle avait vieilli avec lui.
+//
+//   coussin   moyenne   >=38   >=39   >=40      (600 parties appariees)
+//        10     35,04    134     50      5
+//         5     35,52    189     86     25      <- +0,48 de moyenne ET la queue
+//         0     34,23    216     92     33         (-0,81 : le 40 se paie)
+//
+// Le coussin echangeait la queue haute contre la moyenne, et la moyenne qu'il
+// achetait n'existait pas : a 5 on gagne les deux. A 0 le niveau 40 tombe 33
+// fois sur 600 au lieu de 5, mais la moyenne recule -- c'est l'arbitrage que le
+// user a tranche pour la video : le 40 doit etre frequent SANS graine choisie,
+// donc 5.
 #ifndef COUSSIN_CUL_DE_SAC
-#define COUSSIN_CUL_DE_SAC 10
+#define COUSSIN_CUL_DE_SAC 5
 #endif
 
 // La place qu'un coup doit laisser derriere lui. Extraite de culDeSac pour que
@@ -1324,6 +1431,16 @@ int Bot::placeExigee() const {
     // Le coussin est ce qu'on veut GARDER EN PLUS du strict necessaire. Au
     // debut d'une manche l'objectif restant domine et la marge ne sert a rien ;
     // c'est en fin de manche qu'elle mordait, et c'est la qu'elle nuisait.
+    // Le coussin tient MEME quand le but est a portee, et ce n'est pas un
+    // oubli : le retirer sous COUSSIN_CUL_DE_SAC coute -2,65 niveau au banc
+    // apparie (200 parties, t = -4,44, 47 parties degradees contre 21).
+    //
+    // La raison tient a ce qu'espaceApres mesure : un MAJORANT. "Six cases
+    // atteignables" ne fait pas six traversees, et la pose qui semblait
+    // suffisante a une case du but enferme le trace juste avant l'arrivee. Le
+    // coussin est ce qui fait ATTENDRE une vraie occasion plutot que de saisir
+    // la premiere qui a l'air de suffire. Les morts a une case du but sont le
+    // prix visible d'une regle qui paie ailleurs -- voir BOMBES.md.
     int marge = qMin(MARGE_CUL_DE_SAC, libres / 2);
     marge = qMin(marge, restant - 1 + COUSSIN_CUL_DE_SAC);
 
@@ -1422,7 +1539,7 @@ int Bot::tailleRegionVide(int col, int row, int maxi, bool inclureTas) const {
 
 int Bot::espaceApres(const ETypePiece& type, int col, int row, ESens entree,
                      int maxi, QVector<unsigned char> *cases,
-                     const QVector<int> *reservees) const {
+                     const QVector<int> *reservees, bool sansRepli) const {
     Game *plateau = p->plateau();
     int largeur = p->getLargeur();
     int hauteur = p->getHauteur();
@@ -1467,7 +1584,7 @@ int Bot::espaceApres(const ETypePiece& type, int col, int row, ESens entree,
     // dans une chaine de rebuts finissant sur un mur -- alors qu'il lui
     // suffisait d'en reprendre l'avant-derniere case pour repartir ailleurs.
     auto replier = [&](int &rx, int &ry, ESens &re) {
-        if(reprises.isEmpty()) {
+        if(sansRepli || reprises.isEmpty()) {
             return false;
         }
 
@@ -1618,7 +1735,15 @@ int Bot::espaceApres(const ETypePiece& type, int col, int row, ESens entree,
         ETypePiece t = plateau->getTypePiece(nx, ny);
         unsigned char marque;
 
-        if(t == tpNone || estTas(nx, ny)) {
+        // Un rebut que la marche vient d'ABSORBER n'est plus de la reserve :
+        // le flux le traversera, il est devenu du tuyau pose. Le compter comme
+        // une case libre -- ce qui se faisait ici, `estTas` etant lu en direct
+        // -- revient a compter deux fois le meme terrain, une fois comme chemin
+        // et une fois comme place. C'est le pendant du repli de
+        // reculerSurUnRebut, et le meme aveuglement : la chaine de dix rebuts
+        // du niveau 26 annoncait 208 cases de place alors qu'elle butait sur un
+        // bloc et ne laissait que la case du repli.
+        if(t == tpNone || (estTas(nx, ny) && !absorbees[idx])) {
             marque = vuLibre;
         } else if(t == tpCroix) {
             marque = vuAxe << Ecoulement::axe(t, ne);
@@ -1644,7 +1769,10 @@ int Bot::espaceApres(const ETypePiece& type, int col, int row, ESens entree,
         int sx = idx % largeur;
         int sy = idx / largeur;
 
-        if(plateau->getTypePiece(sx, sy) == tpCroix && !estTas(sx, sy)) {
+        // Absorbee, une croix du tas se lit comme une croix posee : tout droit
+        // et rien d'autre. Meme raison qu'au-dessus -- elle n'est plus a nous.
+        if(plateau->getTypePiece(sx, sy) == tpCroix
+           && !(estTas(sx, sy) && !absorbees[idx])) {
             // Croix posee : tout droit et rien d'autre. On demande sa sortie au
             // moteur plutot que de retourner le sens a la main -- la geometrie
             // des tuyaux n'a qu'un seul proprietaire.
@@ -1708,7 +1836,11 @@ QVector<unsigned char> Bot::regionApresPoseSurTete() {
 void Bot::abandonner(int col, int row, ESens entree) {
     Piece haut = p->file()->getPiece(0);
 
-    if(Ecoulement::piecesCompatibles(entree).contains(haut.type)) {
+    // Sur un croisement, abandonner ne veut pas dire tout casser : poser autre
+    // chose qu'une croix couperait la route en amont et ferait perdre les
+    // traversees deja construites. Sans croix en main, on defausse.
+    if(Ecoulement::piecesCompatibles(entree).contains(haut.type)
+       && (haut.type == tpCroix || !croisable(col, row, entree))) {
         p->poserPiece(col, row);
     } else {
         defausser();
@@ -1731,6 +1863,19 @@ bool Bot::acculeParLeFlux(float margeGestes) const {
 }
 
 bool Bot::veutFoncer() const {
+    // Pas tant que notre bombe est en l'air. Foncer lance le flux tout de
+    // suite, le flux remplit du tuyau, et le souffle l'emporte : une vie, et le
+    // deminage que la bombe venait de payer annule avec elle (BOMBES.md §2) --
+    // mesure au banc, 3 morts sur 149 bombes avant ce garde-fou.
+    //
+    // Elle saute dans 2,5 s au plus, et c'est pendant l'attente : il n'y a rien
+    // a regarder, donc rien a accelerer. L'acceleration n'est que retardee.
+    if(bombeEnVol >= 0
+       && p->minage()->fractionRestante(bombeEnVol % p->getLargeur(),
+                                        bombeEnVol / p->getLargeur()) >= 0.0f) {
+        return false;
+    }
+
     return fonce;
 }
 
@@ -1797,6 +1942,117 @@ bool Bot::pariCondamne(const ETypePiece& type, int col, int row, ESens entree,
     }
 
     return mort;
+}
+
+bool Bot::poserBombe(int col, int row) {
+    return p->poserBombe(col, row);
+}
+
+// Ou bomber : la case vide dont le souffle emporte le plus de blocs. Le centre
+// doit etre libre (peutMiner), donc le plafond est huit.
+//
+// Ce n'est PAS un compte de paquet au sens de la connexite : quatre blocs
+// eparpilles dans le 3x3 valent quatre blocs colles. Ce qu'on mesure est le
+// rendement du souffle, et rien d'autre.
+//
+// Ce critere a remplace le "grief" -- un contrefactuel qui accusait le bloc
+// dont le retrait aurait sauve une pose refusee. Le grief etait une mesure
+// honnete mais il DEPARTAGEAIT mal : 78 % des poses avaient plusieurs cases a
+// egalite au sommet, mediane cinq, jusqu'a quarante, et c'est l'ordre de
+// balayage qui tranchait. Le bot ne pulverisait que 1,76 bloc par bombe quand
+// le souffle en prend huit. Mesure, 600 parties appariees : +0,31 de niveau
+// moyen (t = +2,58), le niveau 40 de 89 a 129 et le 41 de 18 a 35.
+//
+// Et il ratait par construction ce qui compte le plus : le grief ne se
+// declenche que si culDeSac a refuse la pose, donc seulement quand le bot est
+// deja a l'etroit. Un paquet qui mure une zone mais qu'on a appris a contourner
+// ne coute rien, n'accuse personne, et n'etait jamais vise.
+bool Bot::choisirPaquetDeBlocs(int &col, int &row) const {
+    Game *plateau = p->plateau();
+    int largeur = p->getLargeur();
+    int hauteur = p->getHauteur();
+    int meilleur = 0;
+    bool trouve = false;
+
+    for(int y = 0; y < hauteur; y++) {
+        for(int x = 0; x < largeur; x++) {
+            if(!p->peutMiner(x, y)) {
+                continue;
+            }
+
+            int blocs = 0;
+
+            for(int dy = -1; dy <= 1; dy++) {
+                for(int dx = -1; dx <= 1; dx++) {
+                    int nx = x + dx, ny = y + dy;
+
+                    if(nx >= 0 && nx < largeur && ny >= 0 && ny < hauteur
+                       && plateau->getTypePiece(nx, ny) == tpBloque) {
+                        blocs++;
+                    }
+                }
+            }
+
+            if(blocs > meilleur) {
+                meilleur = blocs;
+                col = x;
+                row = y;
+                trouve = true;
+            }
+        }
+    }
+
+    return trouve;
+}
+
+// La strategie du user, et elle est sobre : garder les bombes pour les rejeux.
+// Le premier essai se joue sans rien -- s'il passe, tout benefice, les bombes
+// sont encore la. Perdu, le rejeu se paie deja d'une vie : autant y entrer avec
+// du terrain degage.
+//
+// Une seule exception, et c'est de l'arithmetique, pas du gout : au plafond,
+// une manche gagnee sans depenser JETTE la bombe qu'elle rapportait. Garder
+// coute alors, et le bot bombe des le premier essai.
+//
+// Pose pendant l'attente, avant le depart du flux : rien n'est encore rempli,
+// donc rien ne peut mourir dans le souffle (BOMBES.md §2). Le seul prix est la
+// zone condamnee le temps que ca saute.
+void Bot::gererBombes() {
+    int largeur = p->getLargeur();
+
+    // Notre bombe a saute : le plan de defausse designe des blocs qui n'existent
+    // plus. Il a ete construit au debut de la manche, sur un plateau qui n'est
+    // plus celui-la -- on le refait, une fois, et le terrain ouvert entre enfin
+    // dans le reseau du tas.
+    if(bombeEnVol >= 0
+       && p->minage()->fractionRestante(bombeEnVol % largeur, bombeEnVol / largeur) < 0.0f) {
+        bombeEnVol = -1;
+        construirePlan();
+    }
+
+    if(bombeCetEssai || p->bombes() <= 0 || p->etat() != epAttente) {
+        return;
+    }
+
+    if(essaisNiveau < 2 && p->bombes() < BOMBES_MAX) {
+        return;
+    }
+
+    int col, row;
+
+    // Une bombe ouvre du terrain : on vise donc le souffle qui en emporte le
+    // plus. Voir choisirPaquetDeBlocs pour ce que ce critere a remplace.
+    if(!choisirPaquetDeBlocs(col, row)) {
+        return;
+    }
+
+    if(poserBombe(col, row)) {
+        bombeCetEssai = true;
+        bombeEnVol = row * largeur + col;
+
+        qDebug() << "=== bombe === essai" << essaisNiveau << "du niveau" << p->niveau()
+                 << ": (" << col << "," << row << ") stock restant" << p->bombes();
+    }
 }
 
 void Bot::defausser() {
@@ -2089,6 +2345,112 @@ void Bot::defausser() {
         }
     }
 
+
+    // LA CROIX SUR UN DROIT DU TRACE.
+    //
+    // Une croix defaussee sur une croix (le rang 2) ne change rien au plateau :
+    // mesure, c'est le sort de 52 % des croix au-dela du niveau 20, et de 55 %
+    // au-dela du niveau 30. La croix est detruite pour faire descendre la file,
+    // et elle n'avait aucune chance d'etre reprise.
+    //
+    // Posee sur un tuyau DROIT du trace, elle vaut mieux que ca, et elle ne
+    // risque rien : memeRoutage le dit -- une croix traverse tout droit, elle
+    // est le meme chemin que le droit de son axe. Le flux passe exactement
+    // comme avant. Ce qui change, c'est l'axe PERPENDICULAIRE, qui s'ouvre : le
+    // trace pourra revenir se croiser la.
+    //
+    // Et espaceApres y gagne, parce que sa marche s'arrete sur une piece posee
+    // mais TRAVERSE une croix : le trace deja pose devient permeable la ou il
+    // etait un mur.
+    //
+    // OU la poser. Pas au plus pres de la tete -- une croix isolee n'ouvre
+    // qu'un point, et un point ne sert que si le trace y arrive par le bon
+    // cote. ALIGNEE SUR UNE AUTRE CROIX, elle ouvre une VOIE : le trace enfile
+    // la colonne (ou la rangee) et traverse les deux. C'est le raisonnement du
+    // critere `paire` du plan -- une piece isolee attend des voisines qui
+    // n'arrivent jamais.
+    //
+    // Sur un horizontal, l'axe qui s'ouvre est le VERTICAL : la croix qu'on
+    // cherche est donc dans la meme COLONNE. Sur un vertical, l'inverse.
+    //
+    // Deux garde-fous portes par peutPoser : une case que le flux a deja
+    // remplie n'est pas remplacable, et la tete est exclue comme partout
+    // ailleurs. On ne marque PAS la case comme du tas -- c'est du trace, pas du
+    // reseau parallele, et estTas la rendrait reprenable et comptable comme de
+    // la place libre.
+    if(piece.type == tpCroix && (choix < 0 || rangChoix >= 2)) {
+        int croix = -1;
+        int voieCroix = -1;      // longueur de la voie, -1 = aucune croix alignee
+        int distCroix = -1;
+
+        for(int y = 0; y < hauteur; y++) {
+            for(int x = 0; x < largeur; x++) {
+                ETypePiece actuelle = plateau->getTypePiece(x, y);
+
+                if((actuelle != tpHorizontal && actuelle != tpVertical)
+                   || estTas(x, y) || !p->peutPoser(x, y)
+                   || y * largeur + x == caseTete
+                   || !memeRoutage(tpCroix, actuelle)) {
+                    continue;
+                }
+
+                // L'axe qui s'ouvre est perpendiculaire a celui du droit.
+                bool vertical = (actuelle == tpHorizontal);
+                ETypePiece droitDeLAxe = vertical ? tpVertical : tpHorizontal;
+                int voie = -1;
+
+                // On remonte l'axe des deux cotes jusqu'a une croix DU TRACE.
+                // Chaque case traversee doit pouvoir laisser passer le trace :
+                // vide, du tas (remplacable), ou deja un droit du bon axe. Une
+                // croix du tas ne ferme pas la voie et ne la conclut pas non
+                // plus -- encore remplacable, elle ne promet rien.
+                for(int s = -1; s <= 1 && voie < 0; s += 2) {
+                    for(int d = 1; ; d++) {
+                        int nx = vertical ? x : x + s * d;
+                        int ny = vertical ? y + s * d : y;
+
+                        if(nx < 0 || nx >= largeur || ny < 0 || ny >= hauteur) {
+                            break;
+                        }
+
+                        ETypePiece t = plateau->getTypePiece(nx, ny);
+
+                        if(t == tpCroix && !estTas(nx, ny)) {
+                            voie = d;
+                            break;
+                        }
+
+                        if(t != tpNone && t != droitDeLAxe && !estTas(nx, ny)) {
+                            break;
+                        }
+                    }
+                }
+
+                int dist = qAbs(x - rx) + qAbs(y - ry);
+
+                // Alignee d'abord, et la voie la plus COURTE : moins de cases a
+                // remplir pour s'en servir. L'eloignement de la tete ne
+                // departage que les ex aequo.
+                bool mieuxCroix = croix < 0
+                                  || (voie >= 0 && voieCroix < 0)
+                                  || (voie >= 0 && voieCroix >= 0 && voie < voieCroix)
+                                  || ((voie >= 0) == (voieCroix >= 0)
+                                      && voie == voieCroix && dist < distCroix);
+
+                if(mieuxCroix) {
+                    croix = y * largeur + x;
+                    voieCroix = voie;
+                    distCroix = dist;
+                }
+            }
+        }
+
+        if(croix >= 0) {
+            p->poserPiece(croix % largeur, croix / largeur);
+            return;
+        }
+    }
+
     // Filet de securite. Le plan peut ne rien reclamer : plus une seule case de
     // ce type a corriger, ou un plateau qui n'est pas le 15x15 pour lequel il
     // est calcule. Une piece doit partir a chaque defausse -- sinon la file ne
@@ -2167,21 +2529,39 @@ bool Bot::reculerSurUnRebut(const QVector<int> &reprises,
         int cy = reprises.at(k) / largeur;
         ESens ce = (ESens)entrees.at(k);
 
-        // Une issue veut dire : une piece existe qui s'y raccorde sans
-        // condamner. Sinon ce rebut-la ne vaut pas mieux que le mur, et on
-        // remonte encore.
-        if(ouvertureLocale(cx, cy, ce) > 0) {
-            // Ce qui precede le point de reprise est definitivement au trace.
-            for(int j = 0; j < k; j++) {
-                tas[reprises.at(j)] = 0;
-            }
+        // Le plateau d'APRES le recul, jamais celui d'avant. Reculer ici rend
+        // definitivement au trace tout ce qui precede : ces rebuts-la cessent
+        // d'etre reprenables, donc franchissables, et une issue qui passait par
+        // l'un d'eux n'existe plus une fois le recul pris.
+        //
+        // Ce que ca a coute : niveau 26, chaine de dix rebuts butant sur un
+        // bloc, repli sur la croix (2,10). Elle y avait UNE issue -- un coude
+        // sortant vers (1,10) -- et (1,10) etait justement dans la chaine que
+        // le repli scellait. Tete condamnee au geste suivant, 12 traversees sur
+        // 110, six fois de suite jusqu'au game over.
+        //
+        // On absorbe donc pour de vrai avant de juger, et on rend si la case ne
+        // vaut rien : c'est la meme operation que le succes, faite plus tot.
+        QVector<unsigned char> avant = tas;
 
+        for(int j = 0; j < k; j++) {
+            tas[reprises.at(j)] = 0;
+        }
+
+        // Une issue veut dire : une piece existe qui s'y raccorde sans
+        // condamner ET qui mene ailleurs que celle deja posee. Sinon ce
+        // rebut-la ne vaut pas mieux que le mur -- reprendre une case pour y
+        // remettre le meme chemin ne fait que repayer la piece -- et on remonte
+        // encore.
+        if(issueNouvelle(cx, cy, ce)) {
             col = cx;
             row = cy;
             entree = ce;
 
             return true;
         }
+
+        tas = avant;
     }
 
     // Aucun rebut ne sauve la mise : la manche est bien finie.
@@ -2272,6 +2652,24 @@ bool Bot::tete(int& col, int& row, ESens& entree) {
                 return true;
             }
 
+            // Notre propre tuyau en travers, et une croix en main : on le
+            // croise. Sans croix, c'est un mur comme avant -- la tete
+            // n'accepterait qu'un type absent, et le bot se garerait devant en
+            // defaussant jusqu'a ce que le flux le rattrape. Mesure : une
+            // manche du niveau 34 morte a 18 traversees sur 142 pour avoir
+            // construit vers un croisement sans croix.
+            if(croisable(sx, sy, se) && croixEnFile()) {
+                for(int j = 0; j < reprises.size(); j++) {
+                    tas[reprises.at(j)] = 0;
+                }
+
+                col = sx;
+                row = sy;
+                entree = se;
+
+                return true;
+            }
+
             // Bloc ou piece etrangere : le trace bute. Meme question qu'au-dessus.
             return reculerSurUnRebut(reprises, entrees, col, row, entree);
         }
@@ -2288,17 +2686,35 @@ bool Bot::tete(int& col, int& row, ESens& entree) {
         // mieux que la suite ; celle de peutPoser, sur une case ou le fluide
         // est deja passe.
         if(estTas(sx, sy) && p->peutPoser(sx, sy)
-           && culDeSac(t, sx, sy, se)
-           && ouvertureLocale(sx, sy, se) > 0) {
+           && culDeSac(t, sx, sy, se)) {
+            // L'issue se juge sur le plateau d'APRES l'arret, exactement comme
+            // dans reculerSurUnRebut : s'arreter ici rend definitivement au
+            // trace tous les rebuts traverses pour venir, et une issue qui
+            // passait par l'un d'eux n'existe plus une fois qu'on s'est arrete.
+            //
+            // C'est ce qui a coute la partie du niveau 26 : la chaine butait
+            // sur un bloc, on s'arretait sur la croix (2,10) parce qu'elle
+            // avait UNE issue -- un coude sortant vers (1,10) -- et (1,10)
+            // etait dans la chaine que l'arret venait de sceller. Tete
+            // condamnee au geste suivant, 12 traversees sur 110, six fois.
+            QVector<unsigned char> avant = tas;
+
             for(int j = 0; j < reprises.size(); j++) {
                 tas[reprises.at(j)] = 0;
             }
 
-            col = sx;
-            row = sy;
-            entree = se;
+            if(ouvertureLocale(sx, sy, se) > 0) {
+                col = sx;
+                row = sy;
+                entree = se;
 
-            return true;
+                return true;
+            }
+
+            // Rien a faire de cette case : on rend les rebuts et on continue la
+            // marche. Le mur qu'elle annonce sera pris par reculerSurUnRebut,
+            // qui sait remonter plus haut.
+            tas = avant;
         }
 
         // La case raccorde : le flux la traversera. Si c'est un rebut, on le
@@ -2318,6 +2734,18 @@ bool Bot::tete(int& col, int& row, ESens& entree) {
 }
 
 bool Bot::meneALaMort(const ETypePiece& type, int col, int row, ESens entree) const {
+    // Sur une case deja posee qui n'est pas du tas -- donc du trace --, le seul
+    // type qui ne coupe rien est la croix, et seulement la ou il y a vraiment un
+    // croisement a faire. Tout autre retire l'axe par lequel le flux passe
+    // DEJA, en amont de la tete, et espaceApres ne peut pas voir cette rupture :
+    // il part de la piece et descend, il ne remonte jamais. Elle se juge donc
+    // ici, une fois pour toutes -- ouvertureLocale, culDeSac, poseAcceptable et
+    // choisirPont en heritent tous.
+    if(p->plateau()->getTypePiece(col, row) != tpNone && !estTas(col, row)
+       && (type != tpCroix || !croisable(col, row, entree))) {
+        return true;
+    }
+
     // Exactement la question d'espaceApres, arretee au premier signe de vie :
     // le trace a-t-il encore une case ou aller ? Zero veut dire non -- mur,
     // piece qu'on ne peut ni traverser ni reprendre, ou circuit referme.

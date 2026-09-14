@@ -33,9 +33,17 @@ protected:
     // d'ancrage tant qu'aucun troncon n'existe pour s'accrocher.
     void ancrerDefausse(int col, int row, ESens entree);
 
+    // Combien de cases du TAS le flux traverserait si `type` etait pose sur la
+    // tete. Le tas est du tuyau deja paye dont les deux tiers ne sont jamais
+    // repris ; ce compte est ce qui permet d'aller le chercher au lieu de
+    // l'attendre. Pure projection, ne touche a rien.
+    int recolte(int col, int row, ESens entree, const ETypePiece &type) const;
+
     // Indice de la piece de la file a poser sur la tete (le "pont"), ou -1 si
-    // aucune ne convient. v3 prend la premiere qui va ; les sous-classes
-    // raffinent le choix. `strict` est passe tel quel a poseAcceptable.
+    // aucune ne convient. Parmi celles qui passent le filtre, v3 retient celle
+    // qui fait RAMASSER le plus de rebuts, et a egalite la plus haute dans la
+    // file. Les sous-classes raffinent le choix. `strict` est passe tel quel a
+    // poseAcceptable.
     virtual int choisirPont(int col, int row, ESens entree, bool strict) const;
 
     // Vrai si poser `type` sur cette case (avec cette entree) est acceptable.

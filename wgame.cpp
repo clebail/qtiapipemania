@@ -1,13 +1,69 @@
 #include <QPainter>
 #include <QMouseEvent>
+#include <QTimer>
+#include <QtMath>
 #include <QtDebug>
 #include "wgame.h"
 #include "bot.h"
 #include "dessinpiece.h"
 
+// Duree du flash d'explosion, en millisecondes d'horloge d'AFFICHAGE.
+//
+// La destruction est instantanee cote moteur : l'animation ne decide de rien,
+// elle peut donc garder son quart de seconde meme a 8x, la ou le timer de la
+// bombe, lui, est comprime par l'acceleration (BOMBES.md, §2 et §5). La
+// simulation reste maitresse, le decor est libre.
+#define DUREE_FLASH_MS  250
+
+// Cadence de l'animation, en millisecondes : celle de la fenetre.
+#define PAS_FLASH_MS    16
+
 WGame::WGame(QWidget *parent) : QWidget{parent} {
     // Sans cela Qt n'envoie mouseMoveEvent que bouton enfonce.
     setMouseTracking(true);
+
+    horlogeEcran.start();
+
+    // Notre propre cadence, et non les battements de la fenetre : celle-ci
+    // cesse de repeindre des que la manche est finie -- exactement le sort de
+    // l'explosion qui tue, dont le flash resterait fige sur sa premiere image.
+    // Il ne tourne que tant qu'il reste un flash a montrer.
+    animation = new QTimer(this);
+    animation->setInterval(PAS_FLASH_MS);
+    connect(animation, &QTimer::timeout, this, [this]() {
+        qint64 maintenant = horlogeEcran.elapsed();
+
+        for(int i = flashs.size() - 1; i >= 0; i--) {
+            if(maintenant - flashs.at(i).debut >= DUREE_FLASH_MS) {
+                flashs.remove(i);
+            }
+        }
+
+        if(flashs.isEmpty()) {
+            animation->stop();
+        }
+
+        update();
+    });
+}
+
+void WGame::releverExplosions() {
+    if(partie == nullptr) {
+        return;
+    }
+
+    // Toutes les bombes d'un meme battement partagent l'instant de leur releve,
+    // et c'est bien ce qu'on veut : elles ont saute dans le meme pas de
+    // simulation, elles doivent s'eteindre ensemble.
+    qint64 maintenant = horlogeEcran.elapsed();
+
+    foreach(int idx, partie->minage()->preleverExplosions()) {
+        flashs << SFlash { idx, maintenant };
+    }
+
+    if(!flashs.isEmpty() && !animation->isActive()) {
+        animation->start();
+    }
 }
 
 // Case sous une position en pixels, ou (-1,-1) si le point tombe hors grille.
@@ -230,13 +286,172 @@ static void dessinerMarqueurAnticipation(QPainter& painter, const QRectF& tuile)
     painter.restore();
 }
 
-// Une case du tas posee sur un PARI : la defausse a vise la case de rang 2 du
-// trajet anticipe, en pariant que le rang 1 recevra le type suppose. Hachures
-// rouges, verticales, pour qu'aucune des trois origines ne se confonde -- la
-// defausse ordinaire penche a droite, l'anticipation a gauche, le pari est
-// droit. Ici le plan de defausse n'a pas son mot a dire : seuls l'orientation
-// de l'entree et le refus de se condamner ont autorise la pose, et un pari
-// perdu est bien une piece depensee. La teinte signale ce risque-la.
+// Une case du tas posee sur le TRAJET ANTICIPE : la defausse a vise un rang 2
+// ou 3 de la chaine projetee, par-dessus les trous qu'elle a enjambes. Hachures
+// rouges, a 45 comme les deux autres origines -- c'est la TEINTE qui les
+// separe, pas la pente. Ici le plan de defausse n'a pas son mot a dire : seuls
+// l'orientation de l'entree et le refus de se condamner ont autorise la pose,
+// et une supposition fausse est bien une piece depensee. La teinte signale ce
+// risque-la.
+// Fraction en dessous de laquelle la bombe s'affole. Le dernier tiers de 2,5 s
+// fait moins d'une seconde : assez pour comprendre, trop peu pour s'ecarter --
+// c'est l'intention.
+#define SEUIL_URGENCE   0.34f
+
+// Le compte a rebours d'une bombe posee, par-dessus la piece.
+//
+// L'anneau donne la mesure, la meche la donne aussi mais dans l'objet (voir
+// dessinerBombe), et la pulsation du dernier tiers ne mesure rien : elle attrape
+// l'oeil quand on regarde ailleurs sur le plateau. Les trois ensemble, parce
+// qu'ils ne parlent pas au meme moment.
+//
+// La pulsation se calcule sur la FRACTION, qui decroit lineairement, et jamais
+// sur une horloge : le dessin reste sans etat, et l'affolement suit
+// l'acceleration exactement comme la bombe qu'il annonce.
+static void dessinerCompteARebours(QPainter& painter, const QRectF& tuile, float fraction) {
+    static const QColor cAmbre(0xf0, 0x9a, 0x2c);
+    static const QColor cUrgence(0xe8, 0x48, 0x38);
+
+    qreal rayon = tuile.width() * 0.38;
+    QRectF anneau(tuile.center().x() - rayon, tuile.center().y() - rayon, 2*rayon, 2*rayon);
+    qreal trait = qMax(1.5, tuile.width() * 0.07);
+
+    painter.save();
+    painter.setBrush(Qt::NoBrush);
+
+    // Le tour entier en terne : sans lui, l'arc qui reste ne se rapporte a rien.
+    painter.setPen(QPen(QColor(255, 255, 255, 40), trait));
+    painter.drawEllipse(anneau);
+
+    // Ce qu'il reste, de midi et dans le sens des aiguilles. Qt compte en
+    // seiziemes de degre, a partir de trois heures et vers la gauche : d'ou le
+    // depart a 90 et le span negatif.
+    painter.setPen(QPen(cAmbre, trait, Qt::SolidLine, Qt::RoundCap));
+    painter.drawArc(anneau, 90 * 16, -(int)(fraction * 360.0f * 16));
+
+    if(fraction < SEUIL_URGENCE) {
+        float u = (SEUIL_URGENCE - fraction) / SEUIL_URGENCE;
+        // u au carre : la pulsation accelere au lieu de battre regulierement.
+        float onde = 0.5f + 0.5f * qCos(u * u * 30.0f);
+        QColor halo = cUrgence;
+        halo.setAlpha(30 + (int)(150 * onde));
+
+        painter.setPen(QPen(halo, trait * 1.4));
+        painter.drawEllipse(anneau.adjusted(-trait * 0.8, -trait * 0.8, trait * 0.8, trait * 0.8));
+    }
+
+    painter.restore();
+}
+
+// Une case dans le souffle d'une bombe ARMEE. Teinte ambre legere et lisere :
+// la meme grammaire que les marqueurs du bot, pour que le plateau n'apprenne
+// pas un troisieme langage.
+//
+// Une case PLEINE, elle, ne prevoit pas une perte mais une mort : elle passe en
+// rouge franc et pulse au rythme de la bombe la plus urgente qui la menace. La
+// mort immediate cesse d'etre une punition pour devenir un avertissement -- et
+// ca se lit aussi bien quand c'est un bot qui joue : on voit ce qu'il a choisi
+// de risquer.
+static void dessinerSouffle(QPainter& painter, const QRectF& tuile, float fraction, bool pleine) {
+    static const QColor cAmbre(0xf0, 0x9a, 0x2c);
+    static const QColor cMort(0xe8, 0x48, 0x38);
+
+    const QColor &c = pleine ? cMort : cAmbre;
+    int fond = pleine ? 55 : 26;
+    int bord = pleine ? 150 : 70;
+
+    if(pleine) {
+        // Meme onde que le compte a rebours, et pour la meme raison : calculee
+        // sur la fraction, donc sans etat et solidaire de l'acceleration.
+        float u = 1.0f - qBound(0.0f, fraction, 1.0f);
+        float onde = 0.5f + 0.5f * qCos(u * u * 30.0f);
+
+        fond += (int)(70 * onde);
+        bord = qMin(255, bord + (int)(90 * onde));
+    }
+
+    painter.save();
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(QColor(c.red(), c.green(), c.blue(), fond));
+    painter.drawRect(tuile);
+
+    painter.setBrush(Qt::NoBrush);
+    painter.setPen(QPen(QColor(c.red(), c.green(), c.blue(), bord), qMax(1.0, tuile.width() * 0.04)));
+    painter.drawRect(tuile.adjusted(1, 1, -1, -1));
+
+    painter.restore();
+}
+
+// Le meme 3x3, mais avant le clic : ce que la bombe emporterait si on la posait
+// la. Pointille et sans remplissage -- il ne faut pas confondre ce qui est arme
+// avec ce qu'on envisage. Le rouge, lui, est deja franc : c'est justement
+// l'erreur que la previsualisation existe pour eviter.
+static void dessinerSouffleFantome(QPainter& painter, const QRectF& tuile, bool pleine) {
+    static const QColor cAmbre(0xf0, 0x9a, 0x2c);
+    static const QColor cMort(0xe8, 0x48, 0x38);
+
+    const QColor &c = pleine ? cMort : cAmbre;
+
+    painter.save();
+
+    if(pleine) {
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QColor(c.red(), c.green(), c.blue(), 70));
+        painter.drawRect(tuile);
+    }
+
+    QPen pointille(QColor(c.red(), c.green(), c.blue(), pleine ? 190 : 110),
+                   qMax(1.0, tuile.width() * 0.035), Qt::DotLine);
+
+    painter.setBrush(Qt::NoBrush);
+    painter.setPen(pointille);
+    painter.drawRect(tuile.adjusted(1, 1, -1, -1));
+
+    painter.restore();
+}
+
+// Une case emportee par une explosion qui vient d'avoir lieu. Blanc franc qui
+// s'efface : le seul moment ou le plateau parle plus fort que l'ambre, parce
+// que la case a change d'etat et qu'il faut le voir sans l'avoir cherche.
+//
+// La decroissance est en (1-t) au carre -- l'essentiel est passe a mi-course.
+// Un flash qui s'eteint lineairement a l'air de trainer.
+static void dessinerFlash(QPainter& painter, const QRectF& tuile, float t) {
+    float reste = (1.0f - t) * (1.0f - t);
+
+    painter.save();
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(QColor(255, 255, 255, (int)(210 * reste)));
+    painter.drawRect(tuile);
+    painter.restore();
+}
+
+// Le lisere qui se dilate autour du 3x3 detruit. Il part vite et ralentit,
+// l'inverse exact du flash : deux gestes qui decroissent pareil se confondent
+// en un seul fondu. Il DEBORDE la zone detruite -- le souffle s'arrete la, et
+// l'oeil a besoin de voir l'onde y arriver pour comprendre ou elle s'arrete.
+//
+// Ambre, comme la bombe et comme le souffle qu'il vient d'accomplir : c'est la
+// meme chose qu'on montre, une fois annoncee et une fois faite.
+static void dessinerOndeFlash(QPainter& painter, const QRectF& zone, float t) {
+    static const QColor cAmbre(0xf0, 0x9a, 0x2c);
+
+    // La zone fait trois cases de large : c'est la case qui donne l'echelle du
+    // debord comme de l'epaisseur, pour que l'onde suive la taille du plateau.
+    qreal cote = zone.width() / 3.0;
+    float e = 1.0f - (1.0f - t) * (1.0f - t);
+    qreal debord = cote * 0.75 * e;
+    QColor onde = cAmbre;
+
+    onde.setAlpha((int)(220 * (1.0f - t)));
+
+    painter.save();
+    painter.setBrush(Qt::NoBrush);
+    painter.setPen(QPen(onde, qMax(1.5, cote * 0.12 * (1.0f - t))));
+    painter.drawRect(zone.adjusted(-debord, -debord, debord, debord));
+    painter.restore();
+}
+
 static void dessinerMarqueurPari(QPainter& painter, const QRectF& tuile) {
     static const QColor couleur(0xd8, 0x54, 0x54);
 
@@ -251,9 +466,9 @@ static void dessinerMarqueurPari(QPainter& painter, const QRectF& tuile) {
                         qMax(1.0, tuile.width() * 0.03)));
 
     qreal pas = tuile.width() / 4.0;
-    for(qreal d = pas / 2.0; d < tuile.width(); d += pas) {
+    for(qreal d = -tuile.height(); d < tuile.width(); d += pas) {
         painter.drawLine(QPointF(tuile.left() + d, tuile.top()),
-                         QPointF(tuile.left() + d, tuile.bottom()));
+                         QPointF(tuile.left() + d + tuile.height(), tuile.bottom()));
     }
 
     painter.restore();
@@ -324,6 +539,7 @@ void WGame::paintEvent(QPaintEvent *) {
 
     Game *plateau = partie->plateau();
     Ecoulement *ecoul = partie->ecoulement();
+    Minage *mines = partie->minage();
     int spriteW = spriteWidth();
     int spriteH = spriteHeight();
     int margeX = (size().width() - plateau->getLargeur() * spriteW) / 2;
@@ -336,7 +552,18 @@ void WGame::paintEvent(QPaintEvent *) {
     for(int y=0;y<plateau->getHauteur();y++) {
         for(int x=0;x<plateau->getLargeur();x++) {
             QRectF dest(x*spriteW + margeX, y*spriteH + margeY, spriteW, spriteH);
-            dessinerPiece(painter, dest, plateau->getTypePiece(x, y), plateau->getSens(x, y));
+            ETypePiece type = plateau->getTypePiece(x, y);
+            // La meche ne se consume que pour une bombe ; ailleurs la fraction
+            // vaut -1 et la valeur par defaut fait l'affaire.
+            float reste = type == tpBombe ? mines->fractionRestante(x, y) : 1.0f;
+
+            dessinerPiece(painter, dest, type, plateau->getSens(x, y), reste);
+
+            // Le compte a rebours par-dessus sa propre piece, et sous tout le
+            // reste : ni le plan ni le tas ne peuvent occuper une case minee.
+            if(type == tpBombe && reste >= 0.0f) {
+                dessinerCompteARebours(painter, dest, reste);
+            }
         }
     }
 
@@ -416,11 +643,126 @@ void WGame::paintEvent(QPaintEvent *) {
         }
     }
 
-    // Curseur en dernier, pour rester au-dessus des tuyaux et du liquide.
+    // Zone de souffle des bombes armees, par-dessus le liquide : ce qu'elle
+    // annonce concerne justement les cases pleines.
+    //
+    // On ne demande pas sa liste au Minage : on relit le plateau. Une case
+    // menacee retient la bombe la PLUS URGENTE qui la couvre -- c'est celle-la
+    // qui decide du rythme, et deux bombes voisines ne doivent pas battre a
+    // contretemps sur la meme case.
+    if(mines->nbActives() > 0) {
+        QVector<float> menace(plateau->getLargeur() * plateau->getHauteur(), 2.0f);
+
+        for(int y=0;y<plateau->getHauteur();y++) {
+            for(int x=0;x<plateau->getLargeur();x++) {
+                if(plateau->getTypePiece(x, y) != tpBombe) {
+                    continue;
+                }
+
+                float f = mines->fractionRestante(x, y);
+
+                for(int dy=-1;dy<=1;dy++) {
+                    for(int dx=-1;dx<=1;dx++) {
+                        int nx = x + dx, ny = y + dy;
+
+                        if(nx < 0 || nx >= plateau->getLargeur()
+                           || ny < 0 || ny >= plateau->getHauteur()) {
+                            continue;
+                        }
+
+                        float &m = menace[ny * plateau->getLargeur() + nx];
+                        m = qMin(m, f);
+                    }
+                }
+            }
+        }
+
+        for(int y=0;y<plateau->getHauteur();y++) {
+            for(int x=0;x<plateau->getLargeur();x++) {
+                float f = menace.at(y * plateau->getLargeur() + x);
+
+                // Le reservoir est immunise : le teinter promettrait une
+                // destruction qui n'aura pas lieu.
+                if(f > 1.0f || plateau->getTypePiece(x, y) == tpReservoir) {
+                    continue;
+                }
+
+                QRectF dest(x*spriteW + margeX, y*spriteH + margeY, spriteW, spriteH);
+                dessinerSouffle(painter, dest, f, ecoul->estRempli(x, y));
+            }
+        }
+    }
+
+    // Previsualisation : ce que la bombe emporterait si on la posait sous le
+    // curseur. Seulement la ou le clic droit aboutirait -- la question posee au
+    // survol est exactement celle du clic, Partie::peutMiner pour les deux.
+    if(partie->peutMiner(caseSurvolee.x(), caseSurvolee.y())) {
+        for(int dy=-1;dy<=1;dy++) {
+            for(int dx=-1;dx<=1;dx++) {
+                int nx = caseSurvolee.x() + dx, ny = caseSurvolee.y() + dy;
+
+                if(nx < 0 || nx >= plateau->getLargeur()
+                   || ny < 0 || ny >= plateau->getHauteur()
+                   || plateau->getTypePiece(nx, ny) == tpReservoir) {
+                    continue;
+                }
+
+                QRectF dest(nx*spriteW + margeX, ny*spriteH + margeY, spriteW, spriteH);
+                dessinerSouffleFantome(painter, dest, ecoul->estRempli(nx, ny));
+            }
+        }
+    }
+
+    // Curseur avant-dernier, pour rester au-dessus des tuyaux et du liquide.
     if(caseSurvolee.x() >= 0 && partie->peutPoser(caseSurvolee.x(), caseSurvolee.y())) {
         QRectF dest(caseSurvolee.x()*spriteW + margeX, caseSurvolee.y()*spriteH + margeY,
                     spriteW, spriteH);
         dessinerCurseur(painter, dest);
+    }
+
+    // Les explosions, au-dessus de tout le reste : ca dure un quart de seconde,
+    // et pendant ce quart de seconde il n'y a rien d'autre a regarder. Le
+    // plateau, lui, est deja pulverise -- ce qui suit ne montre que ce qui
+    // vient de disparaitre.
+    if(!flashs.isEmpty()) {
+        qint64 maintenant = horlogeEcran.elapsed();
+        QRectF grille(margeX, margeY,
+                      plateau->getLargeur() * spriteW, plateau->getHauteur() * spriteH);
+
+        painter.save();
+        // Le souffle s'est arrete au bord du plateau (Minage::exploser borne le
+        // 3x3) : l'onde qui le double ne doit pas deborder sur la marge noire.
+        painter.setClipRect(grille);
+
+        foreach(const SFlash &flash, flashs) {
+            float t = qBound(0.0f, (maintenant - flash.debut) / (float)DUREE_FLASH_MS, 1.0f);
+            int col = flash.idx % plateau->getLargeur();
+            int row = flash.idx / plateau->getLargeur();
+
+            for(int dy=-1;dy<=1;dy++) {
+                for(int dx=-1;dx<=1;dx++) {
+                    int nx = col + dx, ny = row + dy;
+
+                    // Meme exception que partout ailleurs : le reservoir a
+                    // survecu au souffle, le blanchir dirait le contraire.
+                    if(nx < 0 || nx >= plateau->getLargeur()
+                       || ny < 0 || ny >= plateau->getHauteur()
+                       || plateau->getTypePiece(nx, ny) == tpReservoir) {
+                        continue;
+                    }
+
+                    QRectF dest(nx*spriteW + margeX, ny*spriteH + margeY, spriteW, spriteH);
+                    dessinerFlash(painter, dest, t);
+                }
+            }
+
+            QRectF zone((col-1)*spriteW + margeX, (row-1)*spriteH + margeY,
+                        3*spriteW, 3*spriteH);
+
+            dessinerOndeFlash(painter, zone, t);
+        }
+
+        painter.restore();
     }
 }
 
@@ -450,6 +792,25 @@ void WGame::mouseReleaseEvent(QMouseEvent *event) {
 
     int col = px / spriteW;
     int row = py / spriteH;
+
+    // Le bouton droit pose une bombe, le gauche un tuyau. Tout autre bouton ne
+    // fait rien : sans ce filtre, un clic du milieu deposerait une piece.
+    if(event->button() == Qt::RightButton) {
+        // Meme partage qu'au-dessus : le widget traduit un clic, Partie decide
+        // -- stock vide, manche finie, case occupee.
+        bool accepte = partie->poserBombe(col, row);
+
+        if(accepte) {
+            repaint();
+        }
+
+        emit bombePosee(col, row, accepte);
+        return;
+    }
+
+    if(event->button() != Qt::LeftButton) {
+        return;
+    }
 
     // Les regles du coup (case interdite, penalite de remplacement) sont dans
     // Partie : le widget ne fait que traduire un clic en coordonnees.

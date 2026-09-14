@@ -40,6 +40,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), horloge() {
     pbDefausse->setFocusPolicy(Qt::NoFocus);
 
     connect(game, &WGame::pieceDeposee, this, &MainWindow::pieceDeposee);
+    connect(game, &WGame::bombePosee, this, &MainWindow::bombePosee);
     connect(cbMEETas, &QCheckBox::toggled, game, &WGame::setAfficherTas);
     game->setAfficherTas(cbMEETas->isChecked());
     connect(cbPlan, &QCheckBox::toggled, game, &WGame::setAfficherPlan);
@@ -94,6 +95,18 @@ void MainWindow::setGraine(quint32 graine) {
     rafraichir();
 }
 
+// Pas de bot a reinstaller ici, au contraire des deux reglages precedents : ni
+// le plateau ni la file ne changent, seuls les compteurs bougent.
+void MainWindow::setVies(int vies) {
+    p->setViesDepart(vies);
+    rafraichir();
+}
+
+void MainWindow::setBombes(int bombes) {
+    p->setBombesDepart(bombes);
+    rafraichir();
+}
+
 quint32 MainWindow::graine() const {
     return p->getGraine();
 }
@@ -114,6 +127,13 @@ void MainWindow::pieceDeposee(int col, int row, bool accepte) {
         journal->geste(p, tempsSimule, col, row, accepte, false);
     }
 
+    rafraichir();
+}
+
+// Poser une bombe n'est pas un geste de construction : la file ne bouge pas, et
+// le journal, qui suit les poses de pieces, n'a rien a en dire. Reste a
+// rafraichir le panneau, ou le stock vient de descendre d'un cran.
+void MainWindow::bombePosee(int, int, bool) {
     rafraichir();
 }
 
@@ -146,15 +166,22 @@ void MainWindow::foncer() {
 }
 
 void MainWindow::annoncerManche() {
-    if(p->getGraine() == graineAnnoncee && p->niveau() == niveauAnnonce) {
+    if(p->numeroManche() == mancheAnnoncee) {
         return;
     }
 
-    graineAnnoncee = p->getGraine();
-    niveauAnnonce = p->niveau();
+    mancheAnnoncee = p->numeroManche();
 
-    qInfo("--- manche : niveau %d, objectif %d   |   rejouer avec :  --graine %u --niveau %d",
-          p->niveau(), p->longueurMinimale(), p->getGraine(), p->niveau());
+    // Vies et bombes comptent dans la commande au meme titre que la graine :
+    // elles ne changent pas le plateau, mais elles changent ce que le bot en
+    // fait -- le veto de la memoire cede sur la derniere vie, et une bombe en
+    // stock ouvre des coups qui n'existent pas sans elle. Relevees ici, donc au
+    // PREMIER battement de la manche : le stock d'apres coup ne rejouerait pas
+    // la meme chose.
+    qInfo("--- manche : niveau %d, objectif %d, %d vie(s), %d bombe(s)"
+          "   |   rejouer avec :  --graine %u --niveau %d --vies %d --bombes %d",
+          p->niveau(), p->longueurMinimale(), p->vies(), p->bombes(),
+          p->getGraine(), p->niveau(), p->vies(), p->bombes());
 }
 
 void MainWindow::rafraichir() {
@@ -222,6 +249,14 @@ void MainWindow::battement() {
         // on fonce, on ne construit plus.
         battementUnitaire(dt, facteur == 1);
     }
+
+    // Une fois la rafale finie, et non a chaque battement unitaire : les bombes
+    // qui sautent dans la meme rafale tiennent le meme instant a l'ecran, ce
+    // qui est exactement ce qu'on veut a 8x -- huit pas de simulation, un seul
+    // instant vecu. La grille arme ses flashs et les anime toute seule : la
+    // fenetre cesse de repeindre des que la manche est finie, et c'est le sort
+    // de l'explosion qui tue.
+    game->releverExplosions();
 
     // Fin de manche : c'est la que le journal peut dire quels gestes ont servi.
     if(journal != nullptr && p->etat() != avant

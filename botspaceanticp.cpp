@@ -3,24 +3,103 @@
 BotSpaceAnticp::BotSpaceAnticp(Partie *p, float cadence, quint32 seed) : Bot(p, cadence, seed) {
 }
 
-int BotSpaceAnticp::choisirPont(int col, int row, ESens entree, bool strict) const {
-    PieceFile *file = p->file();
+// Ce que cette piece ferait RAMASSER : combien de rebuts le flux traverserait
+// s'il la trouvait sur la tete.
+//
+// Le tas n'est pas un decor, c'est du tuyau DEJA PAYE -- une piece par geste
+// depense. Et il rend mal : mesure sur les trois essais d'un niveau 36, 527
+// pieces posees au plan pour 214 seulement reprises par le trace. Les deux
+// tiers partent en fumee, parce que la reprise est SUBIE : Bot::tete() ramasse
+// un rebut quand le trace lui tombe dessus, jamais parce qu'il l'a cherche.
+//
+// Ici on la cherche. La projection existe deja et traverse les cases posees --
+// il ne reste qu'a compter celles qui sont a nous. La tete elle-meme ne compte
+// pas : c'est la case qu'on paye, pas celle qu'on gagne.
+int BotSpaceAnticp::recolte(int col, int row, ESens entree, const ETypePiece &type) const {
+    int largeur = p->getLargeur();
+    int fc, fr;
+    ESens fe;
+    QVector<int> chaine;
 
-    // La premiere piece de la file qui se raccorde a la tete et passe le filtre.
-    for(int c = 0; c < file->getTaille(); c++) {
-        Piece pc = file->getPiece(c);
+    // Le retour ne nous interesse pas : qu'elle debouche sur une case libre ou
+    // qu'elle bute, la chaine parcourue est remplie dans les deux cas, et c'est
+    // elle qu'on compte.
+    caseAnticipee(col, row, entree, type, fc, fr, fe, &chaine);
 
-        if(Ecoulement::piecesCompatibles(entree).contains(pc.type)
-           && poseAcceptable(pc.type, col, row, entree, strict)) {
-            return c;
+    int n = 0;
+
+    foreach(int idx, chaine) {
+        if(idx != row * largeur + col && estTas(idx % largeur, idx / largeur)) {
+            n++;
         }
     }
 
-    return -1;
+    return n;
+}
+
+int BotSpaceAnticp::choisirPont(int col, int row, ESens entree, bool strict) const {
+    PieceFile *file = p->file();
+
+    int choix = -1;
+    int meilleure = -1;
+
+    // Parmi les pieces qui se raccordent a la tete et passent le filtre, celle
+    // qui fait RAMASSER LE PLUS. On prenait la premiere venue : a filtre egal,
+    // une piece qui ouvre sur douze rebuts et une qui ouvre sur du vide se
+    // valaient. C'est la que le tas se perdait.
+    //
+    // A recolte egale on garde la premiere de la file -- c'est exactement le
+    // choix d'avant, et il vaut : plus une piece est haute dans la file, plus
+    // tot elle est jouable, et rien ne departage deux ponts qui ramassent
+    // autant. Quand rien n'est a ramasser, ce critere ne change donc RIEN.
+    for(int c = 0; c < file->getTaille(); c++) {
+        Piece pc = file->getPiece(c);
+
+        if(!Ecoulement::piecesCompatibles(entree).contains(pc.type)
+           || !poseAcceptable(pc.type, col, row, entree, strict)) {
+            continue;
+        }
+
+        // Deux questions differentes, deux criteres.
+        //
+        // En mode STRICT, tous les candidats laissent deja de quoi boucler
+        // l'objectif : la place n'est plus en jeu, autant ramasser du tas.
+        //
+        // En mode LACHE, plus aucun ne suffit -- on ne choisit plus entre des
+        // coups bons, mais le MOINS MAUVAIS. La mesure du moins mauvais, c'est
+        // la place qui reste derriere, pas le butin. Classer par recolte y
+        // revenait a prendre le premier venu des que rien n'etait a ramasser :
+        // vu sur --graine 1679294912 --niveau 20, tete (2,8), trois types
+        // laissant 16 cases pour 8 a parcourir, et le bot joue le quatrieme,
+        // celui qui en laisse UNE. Mort sept cases avant le but, flux encore
+        // loin.
+        int r = strict ? recolte(col, row, entree, pc.type)
+                       : espaceApres(pc.type, col, row, entree);
+
+        if(r > meilleure) {
+            meilleure = r;
+            choix = c;
+        }
+    }
+
+    return choix;
 }
 
 bool BotSpaceAnticp::poseAcceptable(const ETypePiece& type, int col, int row, ESens entree,
                                     bool strict) const {
+    // Reposer le type qui est DEJA la ne change rien au plateau : meme tuyau,
+    // meme orientation, meme tete au geste suivant -- et 25 points de
+    // remplacement. Ca n'arrive que sur une case du tas (la tete peut en etre
+    // une) et ca se voyait a l'oeil : sur --graine 4014996461 --niveau 28, le
+    // bot reposait un vertical sur un vertical deux fois de suite, 4650 -> 4600
+    // points, pendant que le flux avancait.
+    //
+    // Sur une case vide la question ne se pose pas : tpNone n'est jamais un
+    // type de la file.
+    if(p->plateau()->getTypePiece(col, row) == type) {
+        return false;
+    }
+
     // culDeSac englobe meneALaMort, mais le tester d'abord evite le parcours
     // dans le cas lache -- et dit en une ligne ce que les deux etages veulent.
     if(meneALaMort(type, col, row, entree)) {
@@ -146,14 +225,21 @@ bool BotSpaceAnticp::chaineViable(int col, int row, ESens entree, const ETypePie
     // Le besoin, calcule comme dans culDeSac mais en tenant la chaine pour
     // deja prise : ses cases -- posees ou encore vides -- seront traversees par
     // le flux, elles ne comptent pas comme place disponible.
+    //
+    // Une case AU MOINS, meme objectif atteint. L'ancien test se taisait des
+    // que `restant` tombait a zero : la chaine n'etait plus jugee du tout, et
+    // le bot pre-posait des pieces qui tuaient le trace sur le coup. Vu sur
+    // --graine 1679294912 --niveau 5 : coudeBD anticipe en (4,13), il ressort
+    // dans le flanc du vertical que le bot venait lui-meme de poser en (5,13),
+    // manche close 6 s plus tard. L'objectif acquis ne rend pas la mort
+    // gratuite -- il reste les points et la belle manche a aller chercher.
+    //
+    // Et sans repli : voir espaceApres. Juger une chaine en comptant sur le
+    // droit de revenir defaire l'un de ses maillons revient a ne pas la juger.
     int restant = objectifRestant();
-    bool bon = true;
-
-    if(restant > 0) {
-        int besoin = qMax(1, restant - 1);
-        bon = espaceApres(typePont, col, row, entree,
-                          besoin, nullptr, &chaine) >= besoin;
-    }
+    int besoin = qMax(1, restant - 1);
+    bool bon = espaceApres(typePont, col, row, entree,
+                           besoin, nullptr, &chaine, true) >= besoin;
 
     plateau->setTypePiece(fCol, fRow, avant);
     plateau->setSens(fCol, fRow, sensAvant);

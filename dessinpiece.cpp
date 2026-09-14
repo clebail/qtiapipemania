@@ -171,7 +171,12 @@ static void dessinerBloque(QPainter& painter, const QRectF& tuile) {
     painter.drawPath(ombre);
 }
 
-static void dessinerBombe(QPainter& painter, const QRectF& tuile) {
+// La meche brule : elle est tracee de son pied jusqu'a la fraction `reste`, et
+// l'etincelle se tient au bout de ce qui reste. Troncature exacte d'une
+// quadratique par De Casteljau -- deux interpolations et la sous-courbe de 0 a
+// t est (P0, A, C). Qt ne sait pas couper un QPainterPath, et l'approcher en
+// segments se verrait sur une courbe aussi courte.
+static void dessinerBombe(QPainter& painter, const QRectF& tuile, float reste) {
     qreal rayon = tuile.width() * 0.28;
     QRectF corps(tuile.center().x() - rayon, tuile.center().y() - rayon*0.9, 2*rayon, 2*rayon);
 
@@ -179,11 +184,27 @@ static void dessinerBombe(QPainter& painter, const QRectF& tuile) {
     painter.setBrush(cBombe);
     painter.drawEllipse(corps);
 
+    QPointF p0(corps.center().x() + rayon*0.4, corps.top() + rayon*0.2);
+    QPointF p1(corps.center().x() + rayon*1.1, corps.top() - rayon*0.6);
+    QPointF p2(corps.center().x() + rayon*0.3, corps.top() - rayon*0.9);
+
+    qreal t = qBound(0.0, (qreal)reste, 1.0);
+    QPointF a = p0 + (p1 - p0) * t;
+    QPointF b = p1 + (p2 - p1) * t;
+    QPointF c = a + (b - a) * t;
+
     QPainterPath meche;
-    meche.moveTo(corps.center().x() + rayon*0.4, corps.top() + rayon*0.2);
-    meche.quadTo(corps.center().x() + rayon*1.1, corps.top() - rayon*0.6,
-                 corps.center().x() + rayon*0.3, corps.top() - rayon*0.9);
+    meche.moveTo(p0);
+    meche.quadTo(a, c);
     painter.strokePath(meche, QPen(cMeche, tuile.width() * 0.06));
+
+    // L'etincelle, au bout de ce qui reste. Elle descend vers le corps a mesure
+    // que la meche se consume, et disparait avec elle.
+    if(t > 0.0) {
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QColor(0xff, 0xe0, 0x90));
+        painter.drawEllipse(c, tuile.width() * 0.05, tuile.width() * 0.05);
+    }
 
     painter.setPen(Qt::NoPen);
     painter.setBrush(QColor(255, 255, 255, 70));
@@ -226,7 +247,8 @@ static QRectF bandeHorizontale(const QRectF& tuile) {
     return QRectF(tuile.left(), tuile.center().y() - demi, tuile.width(), 2.0 * demi);
 }
 
-static void tracerPiece(QPainter& painter, const QRectF& tuile, ETypePiece type, ESens sens) {
+static void tracerPiece(QPainter& painter, const QRectF& tuile, ETypePiece type, ESens sens,
+                        float meche) {
     painter.save();
     painter.fillRect(tuile, cFond);
     painter.setPen(QPen(cGrille, 1));
@@ -239,7 +261,7 @@ static void tracerPiece(QPainter& painter, const QRectF& tuile, ETypePiece type,
     }
 
     if(type == tpBombe) {
-        dessinerBombe(painter, tuile);
+        dessinerBombe(painter, tuile, meche);
         painter.restore();
         return;
     }
@@ -294,8 +316,18 @@ static void tracerPiece(QPainter& painter, const QRectF& tuile, ETypePiece type,
     painter.restore();
 }
 
-void dessinerPiece(QPainter& painter, const QRectF& tuile, ETypePiece type, ESens sens) {
-    // Une piece ne change pas d'aspect : on la trace une fois par couple
+void dessinerPiece(QPainter& painter, const QRectF& tuile, ETypePiece type, ESens sens,
+                   float meche) {
+    // La bombe est la seule piece qui change d'aspect a taille et sens egaux :
+    // sa meche se consume. Elle passe donc a cote du cache, qui figerait la
+    // premiere image tracee -- c'est le prix d'une case sur quinze fois quinze,
+    // et seulement tant qu'une bombe est posee.
+    if(type == tpBombe) {
+        tracerPiece(painter, tuile, type, sens, meche);
+        return;
+    }
+
+    // Tout le reste ne change pas d'aspect : on le trace une fois par couple
     // (type, sens) et par taille, puis on recopie l'image. Le trace vectoriel
     // ne coute donc rien pendant l'animation de l'ecoulement.
     static QHash<quint32, QPixmap> cache;
@@ -314,7 +346,7 @@ void dessinerPiece(QPainter& painter, const QRectF& tuile, ETypePiece type, ESen
         QPixmap image(taille, taille);
         QPainter peintre(&image);
         peintre.setRenderHint(QPainter::Antialiasing, true);
-        tracerPiece(peintre, QRectF(0, 0, taille, taille), type, sens);
+        tracerPiece(peintre, QRectF(0, 0, taille, taille), type, sens, 1.0f);
         trouve = cache.insert(cle, image);
     }
 

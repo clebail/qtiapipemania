@@ -7,14 +7,27 @@
 // au suivant (voir classerBlame). En dessous, le carrefour n'a rien decide qui
 // compte, et un veto sur un carrefour sans enjeu est arbitraire (VIES.md §3).
 //
-// Dix, c'est aussi COUSSIN_CUL_DE_SAC (bot.cpp) : l'unite de "vraie reserve"
-// que le reste du bot s'est donnee au banc. La coupure est franche sur les
-// manches regardees -- le bruit vit entre 0 et 2, les coupables au-dessus de
-// 30 -- donc la valeur exacte importe peu tant qu'elle tombe dans ce fosse.
-// Elle n'a PAS ete balayee : c'est le premier reglage a mesurer quand le bras
-// v4 aura ses 400 parties.
+// Balaye le 2026-09-16, comme annonce ci-dessous : ZERO gagne, et largement.
+//
+//   seuil   moyenne   >=38   >=39   >=40      (200 parties appariees)
+//       0     36,59     62     24      7      <- +1,60 de moyenne, t = +4,3
+//       2     35,95     56     22      5
+//       5     35,00     49     18      2
+//      10     34,98     47     17      2
+//      20     34,85     50     18      2
+//
+// Confirme sur 600 parties par-dessus le nouveau coussin : 35,52 -> 36,51 de
+// moyenne (+0,99, t = +6,0), 189 -> 236 parties au-dela du niveau 38.
+//
+// Pourquoi : la crainte inscrite ici -- "un veto sur un carrefour sans enjeu
+// est arbitraire" -- coute plus cher que le mal qu'elle evite. Avec un seuil a
+// 10, une manche de niveau 35 ne retenait que DEUX carrefours sur 53 ; les deux
+// vetos epuises, le bot rejouait la meme mort a l'identique jusqu'au game over
+// (observe par le user, graine 1679294912 niveau 35 : 113 traversees, six fois
+// de suite). A zero il a cinquante cartouches : chaque rejeu essaie vraiment
+// autre chose, et c'est ca qui paie.
 #ifndef SEUIL_BLAME
-#define SEUIL_BLAME 10
+#define SEUIL_BLAME 0
 #endif
 
 BotMemoire::BotMemoire(Partie *p, float cadence, quint32 seed) : BotSpaceAnticp(p, cadence, seed) {

@@ -28,6 +28,7 @@ SOURCES += \
     journal.cpp \
     main.cpp \
     mainwindow.cpp \
+    minage.cpp \
     partie.cpp \
     piecefile.cpp \
     wdepart.cpp \
@@ -47,6 +48,7 @@ HEADERS += \
     game.h \
     journal.h \
     mainwindow.h \
+    minage.h \
     partie.h \
     piecefile.h \
     wdepart.h \

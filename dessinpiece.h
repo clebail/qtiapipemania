@@ -20,7 +20,11 @@
 QPainterPath cheminTuyau(const QRectF& tuile, ETypePiece type, ESens sens, ESens entree, float p,
                          bool suivreLeFlux = false);
 
-void dessinerPiece(QPainter& painter, const QRectF& tuile, ETypePiece type, ESens sens);
+// `meche` : ce qu'il reste a bruler sur une bombe, de 1 a la pose a 0 quand
+// elle part. Ignore par tout autre type. Valeur par defaut pour les appelants
+// qui dessinent une piece sans notion de temps -- la file, le plan.
+void dessinerPiece(QPainter& painter, const QRectF& tuile, ETypePiece type, ESens sens,
+                   float meche = 1.0f);
 void dessinerLiquide(QPainter& painter, const QRectF& tuile, ETypePiece type, ESens sens,
                      ESens entree, float progression);
 

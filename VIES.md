@@ -47,7 +47,8 @@ Trois conséquences, et la deuxième est la plus sous-estimée.
 
 ### Vies
 
-- **3 au départ, plafond 9.**
+- **3 au départ, plafond 10** (9 jusqu'au 14 septembre 2026 : le plafond est
+  passé à 10 pour que la rangée de cœurs se lise en deux fois cinq, voir §A.6).
 - Perdre un niveau coûte une vie et **rejoue le même niveau**. Le compteur de
   niveau ne monte pas.
 - Les points d'un niveau perdu sont **conservés**. Remise à zéro au game over
@@ -64,7 +65,7 @@ chose.
 | **belle manche réussie : ≥ 110 traversées** | pic | **3,25** (max 13) |
 
 Total attendu : **3 + 2,58 + 3,25 ≈ 8,8 vies** sur une partie moyenne. Le plafond
-de 9 ne mordra plus seulement sur les bonnes parties, il mordra couramment.
+de 10 ne mordra plus seulement sur les bonnes parties, il mordra couramment.
 
 Les deux chiffres sont mesurés sur les 400 parties du banc **jouées sans vies** :
 chacune s'arrête à la première défaite, niveau 19,05 en moyenne. Avec les vies
@@ -123,7 +124,7 @@ Passer de 120 à 110 fait donc 1,88 → 3,25 vies, et le gain tombe **tard** : 5
 des belles manches sont au niveau 13 ou plus. C'est le point à assumer — à 110,
 la belle manche n'est plus un pic, c'est une seconde règle de rythme, qui paie là
 où la règle des points paie déjà. Elle paie là où le joueur en a besoin, mais le
-plafond de 9 en mangera une partie.
+plafond de 10 en mangera une partie.
 
 #### Réservé aux manches réussies, sous peine de partie sans fin
 
@@ -235,7 +236,8 @@ rendement est tout entier dans B.
 
 ### A. Le moteur — fait
 
-1. ✅ `Partie` : `viesRestantes` (3, plafond 9), `Partie::vies()` pour l'affichage.
+1. ✅ `Partie` : `viesRestantes` (3, plafond `VIES_MAX` = 10, common.h),
+   `Partie::vies()` pour l'affichage.
 2. ✅ `epGameOver` ajouté à côté d'`epPerdue` (`common.h`). `epPerdue` veut
    désormais dire « manche perdue, il reste des vies ».
 3. ✅ Défaite → décrémenter, `nouvelleManche()` sans toucher à `niveauCourant`.
@@ -246,12 +248,17 @@ rendement est tout entier dans B.
    manche **réussie** seulement (sur une manche perdue, le rejeu à l'identique
    rendrait la vie indéfiniment) ; paliers de 20 000 points avec
    `prochainPalier` **mémorisé et jamais décrémenté** — sinon les écrasements
-   font repayer la même barre (+21 % de vies, §2). Plafonner à 9. Les gains sont
+   font repayer la même barre (+21 % de vies, §2). Plafonner à `VIES_MAX`. Les gains sont
    crédités **avant** le décompte de la vie perdue : une manche qui franchit un
    palier en mourant paie la vie qu'elle est en train de perdre.
-6. ✅ Affichage : une rangée de cœurs sous le numéro de niveau, calibrée pour que
-   les neuf du plafond tiennent sur une ligne, et de hauteur constante pour que
-   le panneau ne sautille pas à chaque vie gagnée.
+6. ✅ Affichage : des cœurs sous le numéro de niveau, **deux rangées de cinq**
+   depuis le 14 septembre 2026, de hauteur constante (les deux rangées sont
+   comptées même à zéro vie) pour que le panneau ne sautille pas à chaque vie
+   gagnée. Le pas se calcule sur une rangée : cinq par rangée au lieu de dix
+   double la taille des cœurs à largeur de panneau égale, et c'est tout l'objet
+   du changement. Le plafond est passé de 9 à 10 pour remplir la grille — une
+   case vide au bout de la dernière rangée se lirait comme une vie manquante ;
+   `wpanneau.cpp` le vérifie par `static_assert`.
 
 ### A bis. Ce que le rejeu a cassé au passage : `Partie::numeroManche()`
 

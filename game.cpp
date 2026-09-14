@@ -80,6 +80,51 @@ void Game::reinitialiser(int nbBloquees) {
             break;
         }
     }
+
+    // La sortie doit aussi MENER quelque part. Le flux y entre par le cote du
+    // reservoir et ne peut donc ressortir que par les trois autres : si tous
+    // sont bloques ou hors grille, aucune piece ne sauve la case et la manche
+    // est perdue au premier geste, quoi que fasse le joueur. Vu sur
+    // --graine 3265344782 --niveau 10 : sortie en (14,9), (14,8) et (14,10)
+    // bloquees, bord de grille a droite.
+    //
+    // On libere alors un voisin bloque. Reparer APRES coup plutot que reserver
+    // une case avant : un plateau deja correct ne bouge pas d'un pouce, donc
+    // une graine connue reste exactement la meme partie.
+    //
+    // Ce que ca ne promet pas : que le niveau soit faisable. Un cul-de-sac
+    // trois cases plus loin reste possible -- le garantir demanderait de
+    // chercher un chemin de la longueur de l'objectif, ce qui est un tout autre
+    // travail. Ici on ne corrige que l'impossible immediat.
+    static const SDelta voisines[] = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}};
+
+    bool issue = false;
+    int aLiberer = -1;
+
+    for(int d = 0; d < 4 && !issue; d++) {
+        int nx = sortieX + voisines[d].dx;
+        int ny = sortieY + voisines[d].dy;
+
+        // Hors grille, ou retour au reservoir : ce n'est pas une issue.
+        if(nx < 0 || nx >= largeur || ny < 0 || ny >= hauteur
+           || (nx == xDepart && ny == yDepart)) {
+            continue;
+        }
+
+        if(getTypePiece(nx, ny) == tpBloque) {
+            if(aLiberer < 0) {
+                aLiberer = ny * largeur + nx;
+            }
+
+            continue;
+        }
+
+        issue = true;
+    }
+
+    if(!issue && aLiberer >= 0) {
+        setTypePiece(aLiberer % largeur, aLiberer / largeur, tpNone);
+    }
 }
 
 void Game::reinitialiser(int nbBloquees, quint32 seed) {
