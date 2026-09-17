@@ -1,5 +1,10 @@
 #include "mainwindow.h"
+#include <QDir>
+#include <QFile>
 #include <QKeyEvent>
+#include <QRunnable>
+#include <QTextStream>
+#include <QThread>
 
 #include "botfactory.h"
 #include "journal.h"
@@ -13,6 +18,60 @@
 // rien a regarder. On deroule la fin a cette vitesse plutot que de la subir. Ne
 // s'applique qu'a un bot : un joueur humain, lui, construit encore son bonus.
 #define ACCELERATION_ACQUISE    8
+// Cadence d'enregistrement des images. Le jeu bat a 62,5 Hz ; filmer chaque
+// battement ferait quarante mille fichiers par partie pour un rendu que l'oeil
+// ne distingue pas. Une image toutes les 2,6 battements suffit.
+#define IMAGES_PAR_SECONDE      24
+// Images en attente d'ecriture, au plus. Chacune pese la taille logique du
+// widget en RGB32 -- environ deux mega-octets et demi -- d'ou une file courte :
+// elle sert a absorber les a-coups, pas a prendre de l'avance.
+#define IMAGES_EN_ATTENTE       16
+// Le PNG, et pas le JPEG : c'est mesure, sur la grille d'un niveau 38 bien
+// remplie. L'image pese 73 ko en PNG, et le meme JPEG en fait 98 a qualite 92,
+// 72 a 85, 62 a 80. Un ecran de jeu est un aplat sombre raye de traits nets --
+// le terrain du PNG -- donc le JPEG n'y devient plus petit qu'en descendant
+// assez bas pour abimer le trait, et pour un sixieme de place. Le volume d'une
+// prise ne se joue pas la : deux heures de jeu font des dizaines de giga-octets
+// dans tous les cas, quand le h264 en fait quinze mega-octets.
+// Le releve des manches, dans le dossier des images. Sans lui la prise est
+// illisible : le dossier ne dit pas ou commence un niveau, et deux heures
+// d'images ne se parcourent pas a l'oeil.
+#define FICHIER_MANCHES         "manches.txt"
+// Le niveau qui fait une prise gardable. En dessous, la partie ne vaut pas la
+// video et l'enregistrement recommence de zero -- c'est le critere pose par le
+// user, et le bot l'atteint environ une partie sur cinq.
+#define NIVEAU_VIDEO            40
+
+namespace {
+
+// L'ecriture d'une image, hors du fil de l'interface.
+//
+// C'est une QImage et non une QPixmap : la seconde ne se manipule que dans le
+// fil principal, la premiere est une simple donnee. La conversion se fait donc
+// a la capture, du bon cote de la frontiere.
+class EcritureImage : public QRunnable {
+public:
+    EcritureImage(const QImage &image, const QString &nom, QSemaphore *places)
+        : image(image), nom(nom), places(places) {
+    }
+
+    void run() override {
+        if(!image.save(nom)) {
+            qWarning("capture : echec de l'ecriture de %s", qUtf8Printable(nom));
+        }
+
+        // La place se rend meme en cas d'echec : sinon un disque plein figerait
+        // la fenetre au lieu de se contenter de rater ses images.
+        places->release();
+    }
+
+private:
+    QImage image;
+    QString nom;
+    QSemaphore *places;
+};
+
+}   // namespace
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), horloge() {
     setupUi(this);
@@ -54,6 +113,19 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), horloge() {
     // recalculer sa taille a la main a chaque widget ajoute (barre de boutons...).
     centralWidget()->layout()->setSizeConstraint(QLayout::SetFixedSize);
 
+    // Un fil de moins que la machine : celui de l'interface a du travail, et
+    // c'est lui qui doit rester fluide.
+    encodeurs.setMaxThreadCount(qMax(1, QThread::idealThreadCount() - 1));
+    placesImages.release(IMAGES_EN_ATTENTE);
+
+    graineVue = p->getGraine();
+    niveauMax = p->niveau();
+
+    // La partie attend : le bouton dit donc "demarrer" et non "reprendre". Voir
+    // MainWindow::enPause -- on regle tout (bot, enregistrement) avant que quoi
+    // que ce soit ne bouge.
+    pbPause->setText(tr("démarrer"));
+
     // Une seule horloge pour tout le jeu : c'est Partie qui sait, selon son
     // etat, s'il faut decompter avant le depart ou faire avancer le flux.
     horloge.setInterval(16);
@@ -64,7 +136,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), horloge() {
 }
 
 MainWindow::~MainWindow() {
-    // Le bot d'abord : il tient un pointeur sur la partie.
+    // Les dernieres images d'abord : elles tiennent un semaphore de cet objet,
+    // et une prise se termine entiere ou ne sert a rien.
+    encodeurs.waitForDone();
+
+    // Le bot ensuite : il tient un pointeur sur la partie.
     game->setBot(nullptr);
     delete bot;
     delete journal;
@@ -182,6 +258,15 @@ void MainWindow::annoncerManche() {
           "   |   rejouer avec :  --graine %u --niveau %d --vies %d --bombes %d",
           p->niveau(), p->longueurMinimale(), p->vies(), p->bombes(),
           p->getGraine(), p->niveau(), p->vies(), p->bombes());
+
+    // De quoi consigner ce debut de manche des que la prochaine image lui
+    // donnera un numero -- voir consignerManche(). Releve MAINTENANT, au
+    // premier battement : c'est la que les vies et les bombes sont encore
+    // celles qui rejoueraient la manche a l'identique.
+    ligneManche = QString("%1 %2 %3 %4").arg(p->niveau(), 6)
+                                        .arg(p->getGraine(), 10)
+                                        .arg(p->vies(), 4)
+                                        .arg(p->bombes(), 6);
 }
 
 void MainWindow::rafraichir() {
@@ -189,6 +274,185 @@ void MainWindow::rafraichir() {
     panneau->update();
     // La grille aussi : un changement d'etat peut signifier un plateau neuf.
     game->update();
+
+    capturerImage();
+}
+
+// Game over pendant un enregistrement : cette partie merite-t-elle d'etre
+// gardee ?
+//
+// Le principe est de laisser tourner sans surveillance. Une partie qui atteint
+// le niveau vise fige tout -- enregistrement coupe, jeu en pause -- et on la
+// retrouve intacte au matin. Une partie qui echoue ne laisse rien : le jeu
+// enchaine tout seul sur une partie neuve (Partie::avancer le fait deja au game
+// over), la graine change, et la prise repart de zero en effacant la
+// precedente.
+//
+// Le dossier ne contient donc jamais qu'une seule partie : soit celle qu'on
+// cherchait, soit celle qui est en train d'echouer.
+void MainWindow::terminerPrise() {
+    if(niveauMax < NIVEAU_VIDEO) {
+        qInfo("--- prise abandonnee : niveau %d atteint, il en fallait %d."
+              " On recommence.", niveauMax, NIVEAU_VIDEO);
+        return;
+    }
+
+    priseGardee = true;
+    cbImages->setChecked(false);
+
+    // Et on fige : sans ca le jeu enchainerait sur une partie neuve, qui
+    // n'ecrirait rien (la case est decochee) mais qui tournerait pour rien
+    // jusqu'au matin.
+    enPause = true;
+    pbPause->setText(tr("reprendre"));
+
+    qInfo("=== PRISE GARDEE : niveau %d, %d images dans images/"
+          "   |   la partie :  --graine %u", niveauMax, imageSuivante, graineVue);
+}
+
+// Efface la prise precedente, au premier fichier de la nouvelle.
+//
+// Sans ca, une prise plus courte que la precedente laisserait derriere elle la
+// fin de l'ancienne -- meme dossier, meme numerotation repartie de zero -- et
+// ffmpeg enchainerait les deux sans rien signaler. On ne le fait donc qu'une
+// fois, au debut, et jamais en cours de prise : decocher puis recocher la case
+// poursuit la meme sequence au lieu de detruire ce qui est deja filme.
+//
+// Le filtre ne vise QUE nos fichiers -- six chiffres et .png, plus le releve.
+// Ce que quelqu'un aurait range dans ce dossier ne nous appartient pas.
+//
+// Le releve des manches part avec les images : il numerote celles qu'on
+// efface, le garder ferait pointer ses lignes sur les images de la prise
+// suivante.
+void MainWindow::viderLesImages(const QString &dossier) {
+    QDir rep(dossier);
+
+    foreach(const QString &fichier,
+            rep.entryList(QStringList() << "??????.png" << FICHIER_MANCHES,
+                          QDir::Files)) {
+        if(!rep.remove(fichier)) {
+            qWarning("capture : impossible d'effacer %s", qUtf8Printable(fichier));
+        }
+    }
+}
+
+// Consigne dans le releve la manche qui vient de commencer, en face du numero
+// de l'image ou elle commence.
+//
+// C'est ce qui rend la prise exploitable. Le numero d'image donne le point
+// d'entree dans la sequence -- de quoi couper l'extrait qu'on veut sans
+// parcourir deux heures a l'oeil -- et graine, vies et bombes donnent de quoi
+// REJOUER cette manche-la, seule, au lieu de refaire la nuit entiere.
+//
+// Ouvert et referme a chaque ligne : une session s'arrete en general d'un
+// Ctrl-C ou d'une croix, jamais proprement, et un tampon en attente
+// n'arriverait alors jamais sur le disque.
+void MainWindow::consignerManche(const QString &dossier, int image) {
+    QFile fichier(dossier + "/" + FICHIER_MANCHES);
+
+    if(!fichier.open(QIODevice::Append | QIODevice::Text)) {
+        qWarning("capture : impossible d'ecrire %s",
+                 qUtf8Printable(fichier.fileName()));
+        return;
+    }
+
+    QTextStream flux(&fichier);
+
+    // L'en-tete au premier passage seulement. viderLesImages a supprime le
+    // releve de la prise precedente, donc un fichier vide est un fichier neuf.
+    if(fichier.size() == 0) {
+        flux << "# image niveau     graine vies bombes\n";
+    }
+
+    // Six chiffres, comme le nom du fichier : le numero du releve se recopie
+    // tel quel dans "images/......png", sans rien avoir a recompter.
+    flux << QString("%1 %2\n").arg(image, 6, 10, QChar('0')).arg(ligneManche);
+}
+
+// Une image par changement de l'interface, dans images/ a la racine du projet.
+//
+// C'est `grab()` et non une copie d'ecran : il rend le widget hors ecran, donc
+// il ignore ce qui le recouvre, la fenetre peut etre derriere une autre ou
+// meme minimisee, et l'image ne depend pas du facteur d'echelle de l'ecran.
+// Les paintEvent du jeu ne lisent que l'etat de la partie, ils n'ecrivent rien
+// -- ce repaint supplementaire est donc sans effet sur le jeu.
+//
+// `update()` juste au-dessus ne fait que PLANIFIER un repaint : la capture,
+// elle, peint tout de suite. Elle voit donc le meme etat que le repaint a
+// venir, et non celui d'avant.
+void MainWindow::capturerImage() {
+    // En pause, rien ne bouge : les rafraichissements qui restent viennent des
+    // reglages (choix du bot, cases a cocher), et les enregistrer mettrait dans
+    // la sequence des images d'avant la partie. La prise commence au clic.
+    //
+    // Le credit retombe a zero plutot que de s'accumuler : sans ca, cocher la
+    // case en cours de partie deverserait d'un coup toutes les images qu'on
+    // n'avait pas prises.
+    // La prise gardee ne se laisse plus toucher : recocher la case par megarde
+    // ne doit pas effacer la partie qu'on a attendue toute la nuit.
+    if(priseGardee || !cbImages->isChecked() || enPause) {
+        creditImage = 0.0f;
+        // La manche annoncee n'aura aucune image a designer : la garder ferait
+        // pointer son numero sur une image d'une autre manche le jour ou on
+        // recocherait la case.
+        ligneManche.clear();
+        return;
+    }
+
+    // Une image par unite de credit, et on garde le reste : la cadence tombe
+    // juste a la longue, la ou un compteur de battements entier deriverait
+    // (2,6 battements par image, ca ne se compte pas en entiers).
+    if(creditImage < 1.0f) {
+        return;
+    }
+
+    creditImage -= 1.0f;
+
+    static const QString dossier = QStringLiteral(RACINE_PROJET) + "/images";
+
+    if(imageSuivante == 0) {
+        if(!QDir().mkpath(dossier)) {
+            qWarning("capture : impossible de creer %s", qUtf8Printable(dossier));
+            return;
+        }
+
+        viderLesImages(dossier);
+    }
+
+    // Six chiffres et un pas de un : c'est la sequence que ffmpeg lit sans
+    // qu'on ait a lui expliquer quoi que ce soit. Le numero est relu juste
+    // apres pour le releve, d'ou la variable plutot que l'increment en place.
+    const int numero = imageSuivante++;
+    QString nom = QString("%1/%2.png").arg(dossier)
+                                      .arg(numero, 6, 10, QChar('0'));
+
+    // Une manche attend son numero : c'est cette image, la premiere ecrite
+    // depuis son premier battement.
+    if(!ligneManche.isEmpty()) {
+        consignerManche(dossier, numero);
+        ligneManche.clear();
+    }
+
+    // Rendu a la taille LOGIQUE du widget, pas a celle de l'ecran. Sur un ecran
+    // a facteur deux, grab() rendrait quatre fois plus de pixels pour rien : le
+    // cache de sprites (dessinpiece.cpp) est rempli a la taille logique de la
+    // tuile, donc l'affichage les agrandit deja. Rendre ici a 1:1 donne des
+    // pieces a leur resolution native, et quatre fois moins de travail.
+    //
+    // Le rendu reste dans ce fil -- Qt ne dessine que la -- et c'est la partie
+    // rapide. La QImage passe de l'autre cote de la frontiere ; la compression,
+    // qui coute dix fois plus, part au pool.
+    QImage image(widget->size(), QImage::Format_RGB32);
+
+    // Le fond d'abord : sans alpha, une zone que le widget ne peindrait pas
+    // resterait indefinie.
+    image.fill(palette().color(QPalette::Window));
+    widget->render(&image);
+
+    // Plus de place : on attend qu'un encodeur se libere. Voir placesImages --
+    // attendre ralentit la session, jamais la video.
+    placesImages.acquire();
+    encodeurs.start(new EcritureImage(image, nom, &placesImages));
 }
 
 // Accelerer, c'est jouer PLUSIEURS battements de 16 ms, jamais un battement plus
@@ -226,6 +490,13 @@ void MainWindow::battement() {
 
     EEtatPartie avant = p->etat();
     float dt = horloge.interval() / 1000.0f;
+
+    // Le droit a une image, accumule au rythme de l'horloge -- ici et pas dans
+    // battementUnitaire : c'est une fois par battement d'HORLOGE que l'ecran
+    // change, l'acceleration jouant plusieurs pas de jeu dans le meme instant
+    // affiche. Filmer les pas ferait defiler la fin de manche huit fois trop
+    // vite dans la video.
+    creditImage += IMAGES_PAR_SECONDE * dt;
 
     // L'acceleration demandee ne vaut que pour la manche en cours : elle tombe
     // des que le flux s'arrete, sans quoi la suivante demarrerait lancee.
@@ -266,6 +537,36 @@ void MainWindow::battement() {
 
     if(p->etat() == epEcoulement) {
         game->repaint();
+    }
+
+    // --- la prise de la nuit --------------------------------------------
+    //
+    // Releve au fil de l'eau : le niveau retombe a sa valeur de depart au game
+    // over, donc le lire a ce moment-la ne dirait rien de ce que la partie a
+    // accompli.
+    if(p->etat() == epEcoulement || p->etat() == epAttente) {
+        niveauMax = qMax(niveauMax, p->niveau());
+    }
+
+    // Partie NEUVE : la graine change, et elle seule le dit -- le numero de
+    // manche monte aussi bien au rejeu qu'au niveau suivant. La prise repart
+    // donc de zero, ce qui videra le dossier a l'image suivante.
+    if(p->getGraine() != graineVue) {
+        graineVue = p->getGraine();
+        niveauMax = p->niveau();
+        imageSuivante = 0;
+        // La manche annoncee au debut de ce battement est celle de la partie
+        // qui vient de mourir : son numero d'image n'existe plus, la
+        // numerotation venant de repartir de zero.
+        ligneManche.clear();
+        // Et la partie neuve doit s'annoncer, meme si elle porte le meme
+        // numero de manche que celle qui l'a precedee -- au game over en
+        // premiere manche, le releve n'aurait sinon aucune ligne.
+        mancheAnnoncee = -1;
+    }
+
+    if(avant != epGameOver && p->etat() == epGameOver && cbImages->isChecked()) {
+        terminerPrise();
     }
 
     // Le statut et la jauge ne bougent qu'en attente ou sur changement d'etat :
@@ -373,10 +674,17 @@ void MainWindow::on_pbMemoire_clicked() {
 
 // Simple bascule : un clic fige la partie (bot compris, battement() ne fait
 // plus rien), le suivant la relache. Sert a immobiliser l'ecran le temps d'une
-// copie d'ecran.
+// copie d'ecran -- et, au lancement, a tout regler avant que rien ne parte.
+//
+// Le premier clic DEMARRE : la fenetre s'ouvre en pause, donc le bot choisi ne
+// joue pas encore et aucune image n'est enregistree. C'est ce qui rend la prise
+// synchrone -- la premiere image est le plateau intact, pas un plateau ou le
+// bot a deja pose trois pieces pendant qu'on cochait les cases.
 void MainWindow::on_pbPause_clicked() {
     enPause = !enPause;
-    pbPause->setText(enPause ? tr("reprendre") : tr("pause"));
+    demarre = demarre || !enPause;
+    pbPause->setText(enPause ? (demarre ? tr("reprendre") : tr("démarrer"))
+                             : tr("pause"));
 }
 
 // Les deux boutons de geste n'ont de sens qu'en pas a pas, et il faut un bot

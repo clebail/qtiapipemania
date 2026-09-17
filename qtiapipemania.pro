@@ -4,6 +4,11 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
 
+# La racine du projet, pour que la capture d'images sache ou ecrire quel que
+# soit le repertoire de build (qui est forcement ailleurs, voir juste en
+# dessous).
+DEFINES += RACINE_PROJET=\\\"$$PWD\\\"
+
 # Compilation dans le repertoire source interdite. qmake place le repertoire du
 # .pro AVANT celui de build dans les -I : un ui_*.h ou moc_* laisse a la racine
 # masque donc celui que le shadow build vient de generer, et Qt Creator compile

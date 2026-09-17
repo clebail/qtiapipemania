@@ -77,3 +77,6 @@ CMakeLists.txt.user*
 qtiapipemania
 
 build
+
+# Images capturees par MainWindow::capturerImage(), pour la video
+images
