@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
     for(long tick = 0; tick < 400000L && t < t1 + 5.0f; tick++, t += dt) {
         EEtatPartie avant = p.etat();
 
-        if(avant == epGameOver) break;
+        if(avant == epGameOver || avant == epAbandon) break;
         if(avant != epEcoulement) fonce = false;
 
         if(bot == nullptr && t >= retard) bot = new Sonde(&p, 2.0f, p.getGraine());

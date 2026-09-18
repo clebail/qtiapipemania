@@ -142,6 +142,17 @@ private:
     // c'est la fenetre qui lui dicte chaque geste. Reactive les deux boutons de
     // geste et recalcule l'overlay sur l'etat courant.
     void majPasAPas();
+    // La partie est-elle finie pour de bon -- plus de vie, ou l'eponge jetee ?
+    // C'est le seul cas ou plus rien ne repart tout seul.
+    bool partieFinie() const;
+    // Partie neuve, graine au hasard : le bot est reinstalle avec, comme au
+    // changement de graine -- il tient un tas, un plan et des interdits
+    // calcules sur un plateau qui n'existe plus.
+    void nouvellePartie();
+    // Le libelle du bouton de pause, qui en a quatre selon le moment :
+    // "demarrer" avant le premier clic, "pause" pendant le jeu, "reprendre"
+    // quand il est fige, et "nouvelle partie" une fois la partie finie.
+    void majBoutonPause();
 private slots:
     // Nom volontairement hors du motif on_<objet>_<signal> : l'horloge est
     // connectee explicitement, pas via connectSlotsByName.
@@ -155,6 +166,7 @@ private slots:
     void on_pbSpace_clicked();
     void on_pbSpaceAnticp_clicked();
     void on_pbMemoire_clicked();
+    void on_pbTrace_clicked();
     void on_pbPause_clicked();
     void on_cbStep_toggled(bool actif);
     void on_pbGeste_clicked();

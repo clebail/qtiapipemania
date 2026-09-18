@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
         for(long tick = 0; tick < 40000000L; tick++) {
             EEtatPartie avant = p.etat();
 
-            if(avant == epGameOver) {
+            if(avant == epGameOver || avant == epAbandon) {
                 break;
             }
 
@@ -51,7 +51,8 @@ int main(int argc, char *argv[]) {
 
             EEtatPartie apres = p.etat();
 
-            if(avant != apres && (apres == epReussie || apres == epPerdue || apres == epGameOver)) {
+            if(avant != apres && (apres == epReussie || apres == epPerdue
+                                  || apres == epGameOver || apres == epAbandon)) {
                 printf("niveau %2d  objectif %3d  traversees %3d  %s  vies %d  score %6d  plateau %u\n",
                        niveau, p.longueurMinimale(), p.casesTraversees(),
                        apres == epReussie ? "REUSSIE " : (apres == epPerdue ? "perdue  " : "GAMEOVER"),

@@ -45,10 +45,26 @@ public:
     bool lancerFluxAnticipe();
 
     // Ecourte la pause d'affichage du resultat et enchaine tout de suite :
-    // niveau suivant si la manche est reussie, nouvelle partie sinon. Renvoie
-    // false hors des deux etats de fin. Aucune prime et aucune penalite -- la
-    // pause n'est qu'un temps de lecture, la sauter ne s'achete pas.
+    // niveau suivant si la manche est reussie, MEME niveau si elle est perdue.
+    // Renvoie false hors de ces deux etats -- une partie finie ou abandonnee
+    // ne s'enchaine plus, elle reste ou elle est. Aucune prime et aucune
+    // penalite : la pause n'est qu'un temps de lecture, la sauter ne s'achete
+    // pas.
     bool passerLaSuite();
+
+    // JETER L'EPONGE. La partie s'arrete la, plateau et compteurs intacts, et
+    // rien ne repart -- exactement comme au game over, dont elle ne se
+    // distingue que par le mot que la grille affiche en grand.
+    //
+    // Elle existe pour le bot : en rejeu, une manche perdue d'avance se rejoue
+    // a l'identique tant qu'il reste des vies, et regarder cinq fois la meme
+    // mort n'apprend rien a personne. Rien n'empeche le joueur d'y avoir droit
+    // aussi, le jour ou un bouton la lui offrira.
+    //
+    // Ce que le flux a deja traverse est encaisse au passage : c'est acquis, la
+    // manche ne s'arreterait pas autrement. Les vies, elles, ne bougent pas --
+    // on n'en perd pas une en refusant de jouer, on renonce a toutes.
+    void abandonner();
 
     // Le coup est-il permis ? (case deja traversee par le fluide, reservoir,
     // hors grille, manche finie : autant de refus)

@@ -491,6 +491,13 @@ void Bot::fusionnerCircuits(QVector<unsigned char> &ouv, const QVector<unsigned 
     effacerCircuitsCourts(ouv, largeur, hauteur);
 }
 
+// Aucune case reservee tant qu'aucun trace n'est planifie : le pavage couvre
+// alors tout ce qu'il peut, et c'est bien ce qu'il faut a un bot qui ignore par
+// ou il passera. Voir BotTrace pour l'autre reponse.
+bool Bot::reserveeAuTrace(int, int) const {
+    return false;
+}
+
 void Bot::construirePlan() {
     Game *plateau = p->plateau();
     int largeur = p->getLargeur();
@@ -506,7 +513,8 @@ void Bot::construirePlan() {
     QVector<unsigned char> mort(taille, 0);
 
     for(int i = 0; i < taille; i++) {
-        if(plateau->getTypePiece(i % largeur, i / largeur) == tpBloque) {
+        if(plateau->getTypePiece(i % largeur, i / largeur) == tpBloque
+           || reserveeAuTrace(i % largeur, i / largeur)) {
             mort[i] = 1;
         }
     }
@@ -1168,6 +1176,22 @@ Bot::Bot(Partie *p, float cadence, quint32 seed) {
 }
 
 void Bot::avancer(float dt) {
+    // Partie finie -- plus de vie, ou l'eponge jetee : il n'y a plus rien a
+    // jouer, et le plateau ne bougera plus. Continuer a marquer les
+    // obligations soixante fois par seconde devant un ecran arrete ne coute
+    // que du temps machine.
+    if(p->etat() == epGameOver || p->etat() == epAbandon) {
+        return;
+    }
+
+    // Avant tout le reste : c'est la fin de la manche precedente qu'on juge,
+    // et elle doit l'etre pendant que son plateau est encore a l'ecran.
+    surveillerRejeu();
+
+    if(p->etat() == epAbandon) {
+        return;
+    }
+
     // Le numero de manche, et surtout pas la graine du plateau : depuis les
     // vies, une defaite rejoue le MEME niveau, donc la meme graine derivee. Se
     // fier a la graine faisait manquer le rejeu au bot -- il gardait son tas,
@@ -1183,7 +1207,12 @@ void Bot::avancer(float dt) {
         if(p->niveau() != niveauVu) {
             niveauVu = p->niveau();
             essaisNiveau = 0;
+            // Plateau et file entierement neufs : le compte repart de zero.
+            rejeuxSansEspoir = 0;
         }
+
+        // Une manche neuve est une manche a juger.
+        mancheJugee = false;
 
         // Meme niveau, manche neuve : c'est un rejeu, et le bot vient de payer
         // une vie pour lui.
@@ -1224,6 +1253,12 @@ void Bot::avancer(float dt) {
     gererBombes();
 
     jouer(dt);
+}
+
+// Aucun trace planifie : ces bots-la construisent de proche en proche devant le
+// flux, il n'y a rien a montrer. La grille retombe alors sur son propre calcul.
+const Trace *Bot::tracePlanifie() const {
+    return nullptr;
 }
 
 void Bot::demanderFoncer() {
@@ -1345,7 +1380,93 @@ bool Bot::teteCondamnee(int col, int row, ESens entree) const {
     return ouvertureLocale(col, row, entree) == 0;
 }
 
+// Faux par defaut : voir bot.h. Seul un bot qui planifie son trace sait qu'une
+// manche est perdue avant de l'avoir jouee.
+bool Bot::rienAPerdre() const {
+    return false;
+}
+
+// Faux par defaut : voir bot.h. Un bot sans plan ne peut pas juger du sort
+// d'un niveau, donc il ne renonce jamais.
+bool Bot::niveauSansEspoir() const {
+    return false;
+}
+
+void Bot::setPlanificationAsynchrone(bool oui) {
+    planAsynchrone = oui;
+}
+
+void Bot::setRejeuxAvantAbandon(int rejeux) {
+    rejeuxAvantAbandon = qMax(0, rejeux);
+}
+
+void Bot::surveillerRejeu() {
+    if(rejeuxAvantAbandon <= 0) {
+        return;
+    }
+
+    // A la fin de la manche PERDUE, et une seule fois : le plateau ne bouge
+    // plus, et c'est l'image complete du tour qui vient de se jouer. La manche
+    // reussie ne nous regarde pas -- elle change de niveau, donc de plateau et
+    // de file, et il n'y a plus rien a comparer.
+    if(p->etat() != epPerdue || mancheJugee) {
+        return;
+    }
+
+    // PAS TANT QU'IL RESTE UNE BOMBE. Le stock est un levier qu'on n'a pas
+    // encore tire : il ouvre du terrain, donc il change le trace, donc il
+    // change la manche -- et le rejeu cesse d'etre une copie. Abandonner avec
+    // des bombes en poche, c'est renoncer avant d'avoir essaye.
+    //
+    // Signale par le user sur `--graine 2998034427 --niveau 36 --vies 9
+    // --bombes 4` : "il abandonne avec 2 bombes".
+    if(p->bombes() > 0) {
+        return;
+    }
+
+    mancheJugee = true;
+
+    if(!niveauSansEspoir()) {
+        // Le plan peut encore gagner : rien a abandonner.
+        rejeuxSansEspoir = 0;
+        return;
+    }
+
+    // essaisNiveau vaut le numero de la manche dans le niveau : on ne compte
+    // que les REJEUX, pour laisser sa chance au premier passage.
+    if(essaisNiveau >= 2) {
+        rejeuxSansEspoir++;
+    }
+
+    if(rejeuxSansEspoir < rejeuxAvantAbandon) {
+        return;
+    }
+
+    // ON S'ARRETE LA. La partie se fige sur la manche qu'on vient de perdre --
+    // pas sur le plateau vide de la suivante -- et la grille l'annonce en
+    // grand. Les vies qui restent n'auraient rejoue que ce meme film.
+    qDebug() << "=== abandon === niveau" << p->niveau() << ":" << rejeuxSansEspoir
+             << "rejeux sans espoir -- le plan ne vaut pas l'objectif et plus"
+             << "aucune bombe ne le rallongera. Il restait" << p->vies() << "vies";
+
+    p->abandonner();
+}
+
+bool Bot::planificationAsynchrone() const {
+    return planAsynchrone;
+}
+
+bool Bot::objectifAcquis() const {
+    return p->longueurTracee() >= p->longueurMinimale();
+}
+
 int Bot::objectifRestant() const {
+    // Rien a perdre : l'objectif n'est plus un cap, c'est une facon de dire
+    // "securise-toi". On ne se securise pas pour une manche deja perdue.
+    if(rienAPerdre()) {
+        return 0;
+    }
+
     return qMax(0, p->longueurMinimale() - p->longueurTracee());
 }
 
@@ -2030,11 +2151,7 @@ void Bot::gererBombes() {
         construirePlan();
     }
 
-    if(bombeCetEssai || p->bombes() <= 0 || p->etat() != epAttente) {
-        return;
-    }
-
-    if(essaisNiveau < 2 && p->bombes() < BOMBES_MAX) {
+    if(p->bombes() <= 0 || p->etat() != epAttente || !bomberMaintenant()) {
         return;
     }
 
@@ -2053,6 +2170,33 @@ void Bot::gererBombes() {
         qDebug() << "=== bombe === essai" << essaisNiveau << "du niveau" << p->niveau()
                  << ": (" << col << "," << row << ") stock restant" << p->bombes();
     }
+}
+
+// La regle de base, celle de BOMBES.md : UNE bombe par essai, et rien avant le
+// premier rejeu -- sauf stock plein, ou garder la onzieme ne rapporterait rien.
+//
+// Elle a ete ecrite quand aucun bot ne pouvait savoir qu'une manche etait
+// perdue d'avance : bomber tout de suite etait alors un pari. Un bot qui
+// planifie son trace, lui, le sait au premier battement, et il redefinit
+// legitimement cette regle (voir BotTrace).
+bool Bot::bomberMaintenant() const {
+    if(bombeCetEssai) {
+        return false;
+    }
+
+    return essaisNiveau >= 2 || p->bombes() >= BOMBES_MAX;
+}
+
+bool Bot::bombeDejaPosee() const {
+    return bombeCetEssai;
+}
+
+bool Bot::bombeEnAttente() const {
+    return bombeEnVol >= 0;
+}
+
+int Bot::essaiDuNiveau() const {
+    return essaisNiveau;
 }
 
 void Bot::defausser() {
@@ -2387,9 +2531,17 @@ void Bot::defausser() {
             for(int x = 0; x < largeur; x++) {
                 ETypePiece actuelle = plateau->getTypePiece(x, y);
 
+                // Le trace planifie est intouchable TANT QUE l'objectif n'est
+                // pas acquis : une croix posee dessus coute 25 points et ne
+                // rapporte que si le trace revient s'y croiser, ce qu'un trace
+                // planifie ne fait pas. Une fois l'objectif dans la poche, en
+                // revanche, c'est le v3 qui construit le bonus -- lui se croise
+                // volontiers, et une croix traversee deux fois vaut deux fois
+                // 50 points. Voir BotTrace pour la releve.
                 if((actuelle != tpHorizontal && actuelle != tpVertical)
                    || estTas(x, y) || !p->peutPoser(x, y)
                    || y * largeur + x == caseTete
+                   || (reserveeAuTrace(x, y) && objectifRestant() > 0)
                    || !memeRoutage(tpCroix, actuelle)) {
                     continue;
                 }
@@ -2460,7 +2612,7 @@ void Bot::defausser() {
         for(int y = 0; y < hauteur; y++) {
             for(int x = 0; x < largeur; x++) {
                 if(plateau->getTypePiece(x, y) != tpNone || !p->peutPoser(x, y)
-                   || y * largeur + x == caseTete) {
+                   || y * largeur + x == caseTete || reserveeAuTrace(x, y)) {
                     continue;
                 }
 
@@ -2468,6 +2620,43 @@ void Bot::defausser() {
 
                 if(choix < 0 || dist > distChoix) {
                     choix = y * largeur + x;
+                    distChoix = dist;
+                }
+            }
+        }
+    }
+
+    // PLATEAU SATURE. Plus une seule case vide ou jeter : sous un trace
+    // planifie, le hors trace se compte en dizaines de cases (18 au niveau 44,
+    // TRACE.md §4) et le tas finit par les occuper toutes. La file cesse alors
+    // de descendre, le bot ne rejoue plus jamais -- ni pose ni defausse -- et
+    // la manche s'eteint sur un plateau a douze cases vides.
+    //
+    // On ecrase donc un rebut a nous. Vingt-cinq points contre une file
+    // bloquee : le choix n'en est pas un. La regle ferme tient toujours -- on
+    // ne touche pas au trace, seulement a ce qu'on a soi-meme jete.
+    //
+    // Et tant qu'a ecraser, on ecrase le MEME TYPE : le plateau ne change alors
+    // pas d'un iota, on ne defait aucun raccord du reseau de defausse, et le
+    // geste ne coute que ses 25 points. A defaut seulement, un rebut
+    // quelconque, le plus loin de la tete comme partout ailleurs.
+    if(choix < 0) {
+        bool memeChoix = false;
+
+        for(int y = 0; y < hauteur; y++) {
+            for(int x = 0; x < largeur; x++) {
+                if(!estTas(x, y) || !p->peutPoser(x, y)
+                   || y * largeur + x == caseTete || reserveeAuTrace(x, y)) {
+                    continue;
+                }
+
+                bool meme = plateau->getTypePiece(x, y) == piece.type;
+                int dist = qAbs(x - rx) + qAbs(y - ry);
+
+                if(choix < 0 || (meme && !memeChoix)
+                   || (meme == memeChoix && dist > distChoix)) {
+                    choix = y * largeur + x;
+                    memeChoix = meme;
                     distChoix = dist;
                 }
             }
@@ -2502,6 +2691,14 @@ bool Bot::estPari(int col, int row) const {
     }
 
     return tas.at(row * p->getLargeur() + col) == 3;
+}
+
+unsigned char Bot::origineTas(int col, int row) const {
+    if(col < 0 || col >= p->getLargeur() || row < 0 || row >= p->getHauteur()) {
+        return 0;
+    }
+
+    return tas.at(row * p->getLargeur() + col);
 }
 
 // Recul sur un rebut : appele quand le trace, suivi depuis le reservoir, bute.

@@ -10,7 +10,7 @@ Journal::Journal(const QString &chemin) : fichier(chemin) {
     sortie.setDevice(&fichier);
 
     if(neuf) {
-        sortie << "manche,niveau,temps,source,col,row,accepte,etat,avance,distance,remplie\n";
+        sortie << "manche,niveau,temps,source,col,row,accepte,etat,avance,distance,remplie,origine\n";
     }
 }
 
@@ -23,7 +23,7 @@ bool Journal::ouvert() const {
 }
 
 void Journal::geste(const Partie *partie, float temps, int col, int row,
-                    bool accepte, bool parLeBot) {
+                    bool accepte, bool parLeBot, unsigned char origine) {
     Geste g;
 
     g.niveau = partie->niveau();
@@ -32,6 +32,7 @@ void Journal::geste(const Partie *partie, float temps, int col, int row,
     g.col = col;
     g.row = row;
     g.accepte = accepte;
+    g.origine = origine;
     g.etat = partie->etat();
     // Cases construites devant le flux : la marge du joueur. C'est elle qui
     // permet de lire une cadence sous pression au lieu d'une moyenne plate --
@@ -71,7 +72,7 @@ void Journal::finDeManche(const Partie *partie) {
                << (g.accepte ? 1 : 0) << ","
                << (g.etat == epAttente ? "attente" : "flux") << ","
                << g.avance << "," << g.distance << ","
-               << (remplie ? 1 : 0) << "\n";
+               << (remplie ? 1 : 0) << "," << (int)g.origine << "\n";
     }
 
     sortie.flush();

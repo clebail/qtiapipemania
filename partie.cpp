@@ -60,8 +60,20 @@
 // Cases infranchissables : levier de difficulte qui joue sur la reflexion et
 // non sur le rythme, donc sans risque d'approcher le point de bascule ou le
 // flux irait plus vite que la main du joueur.
+//
+// Le plafond est passe de 24 a 64 le 18 septembre 2026, pour RACCOURCIR la
+// partie : le bot trace finissait au niveau 50 et la prise video avec lui. Il
+// finit maintenant a 34,1 en moyenne (33-36 sur douze parties), pour un score
+// qui tombe de 374 k a 162 k -- court et gros chiffre tirent en sens inverse,
+// c'est le choix du user.
+//
+// Ce plafond-la ne mord qu'a partir du niveau MAX/2 + 1, soit le 33 : c'est
+// donc la RAMPE qui fixe la fin, pas lui, et monter au-dela de 64 ne change
+// plus rien puisque le bot meurt avant de l'atteindre (mesure : 72 donne
+// exactement les memes niveaux). Les premiers niveaux, eux, sont inchanges --
+// la montee en difficulte garde la meme allure, elle s'arrete plus tot.
 #define BLOQUEES_PAS            2
-#define BLOQUEES_MAX            24
+#define BLOQUEES_MAX            64
 // Plateau et file tirent chacun leur graine de manche : sans ce decoupage, les
 // deux generateurs partiraient du meme etat et le placement du reservoir serait
 // correle a la premiere piece.
@@ -241,7 +253,9 @@ bool Partie::lancerFluxAnticipe() {
 }
 
 bool Partie::passerLaSuite() {
-    if(etatCourant != epReussie && etatCourant != epPerdue && etatCourant != epGameOver) {
+    // Ni le game over ni l'abandon : il n'y a plus de suite a passer, la
+    // partie reste ou elle est.
+    if(etatCourant != epReussie && etatCourant != epPerdue) {
         return false;
     }
 
@@ -283,6 +297,21 @@ void Partie::terminerManche(bool mortSubite) {
     viesRestantes--;
     etatCourant = viesRestantes > 0 ? epPerdue : epGameOver;
     tempsAvantSuite = PAUSE_PERDUE;
+}
+
+void Partie::abandonner() {
+    if(etatCourant == epAbandon || etatCourant == epGameOver) {
+        return;
+    }
+
+    // Le tuyau deja parcouru est paye : abandonner n'annule pas ce qui a eu
+    // lieu. Hors manche -- pendant la pause d'un verdict -- terminerManche l'a
+    // deja credite, et le recompter doublerait la derniere manche.
+    if(etatCourant == epAttente || etatCourant == epEcoulement) {
+        pointsCourants += ecoul->nbCasesTraversees() * POINTS_PAR_CASE;
+    }
+
+    etatCourant = epAbandon;
 }
 
 void Partie::gagnerVie() {
@@ -361,11 +390,9 @@ void Partie::avancer(float dt) {
 
     case epReussie:
     case epPerdue:
-    case epGameOver:
-        // On laisse le resultat affiche un instant, puis on enchaine. Trois
-        // suites et non deux : niveau suivant si la manche est reussie, MEME
-        // niveau si elle est perdue -- c'est la vie qu'on vient de payer --,
-        // partie neuve au game over seulement.
+        // On laisse le resultat affiche un instant, puis on enchaine. Deux
+        // suites : niveau suivant si la manche est reussie, MEME niveau si
+        // elle est perdue -- c'est la vie qu'on vient de payer.
         tempsAvantSuite -= dt;
 
         if(tempsAvantSuite <= 0.0f) {
@@ -375,14 +402,21 @@ void Partie::avancer(float dt) {
                 // que pour ses rejeux.
                 mines->viderNiveau();
                 nouvelleManche();
-            } else if(etatCourant == epPerdue) {
+            } else {
                 // Points conserves, niveau inchange : le rejeu redonne le meme
                 // plateau et la meme file, tout l'interet de la vie depensee.
                 nouvelleManche();
-            } else {
-                nouvellePartie();
             }
         }
+        break;
+
+    case epGameOver:
+    case epAbandon:
+        // RIEN, et c'est voulu. La partie neuve qui repartait toute seule au
+        // bout de la pause emportait l'ecran qu'on voulait voir : le plateau
+        // tel que la derniere manche l'a laisse, avec le verdict en grand
+        // par-dessus. On s'arrete dessus. Une partie neuve se demande, elle ne
+        // s'impose plus.
         break;
     }
 }

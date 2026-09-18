@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
+    <width>845</width>
     <height>600</height>
    </rect>
   </property>
@@ -72,7 +72,7 @@
        <item>
         <widget class="QCheckBox" name="cbMEETas">
          <property name="text">
-          <string>Tas : défausse et anticipation</string>
+          <string>Tas</string>
          </property>
          <property name="checked">
           <bool>true</bool>
@@ -82,7 +82,14 @@
        <item>
         <widget class="QCheckBox" name="cbPlan">
          <property name="text">
-          <string>Afficher le plan de défausse</string>
+          <string>Plan de défausse</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="cbTrace">
+         <property name="text">
+          <string>Tracé</string>
          </property>
         </widget>
        </item>
@@ -142,14 +149,21 @@
        <item>
         <widget class="QPushButton" name="pbSpaceAnticp">
          <property name="text">
-          <string>SpaceAnticp</string>
+          <string>Anticip</string>
          </property>
         </widget>
        </item>
        <item>
         <widget class="QPushButton" name="pbMemoire">
          <property name="text">
-          <string>Memoire</string>
+          <string>Mem</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pbTrace">
+         <property name="text">
+          <string>Tracé</string>
          </property>
         </widget>
        </item>
@@ -169,28 +183,28 @@
        <item>
         <widget class="QPushButton" name="pbPause">
          <property name="text">
-          <string>pause</string>
+          <string>Pause</string>
          </property>
         </widget>
        </item>
        <item>
         <widget class="QPushButton" name="pbGeste">
          <property name="text">
-          <string>geste bot</string>
+          <string>Bot</string>
          </property>
         </widget>
        </item>
        <item>
         <widget class="QPushButton" name="pbPose">
          <property name="text">
-          <string>pose</string>
+          <string>Pose</string>
          </property>
         </widget>
        </item>
        <item>
         <widget class="QPushButton" name="pbDefausse">
          <property name="text">
-          <string>défausse</string>
+          <string>Défausse</string>
          </property>
         </widget>
        </item>

@@ -37,10 +37,6 @@
 // illisible : le dossier ne dit pas ou commence un niveau, et deux heures
 // d'images ne se parcourent pas a l'oeil.
 #define FICHIER_MANCHES         "manches.txt"
-// Le niveau qui fait une prise gardable. En dessous, la partie ne vaut pas la
-// video et l'enregistrement recommence de zero -- c'est le critere pose par le
-// user, et le bot l'atteint environ une partie sur cinq.
-#define NIVEAU_VIDEO            40
 
 namespace {
 
@@ -86,6 +82,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), horloge() {
     pbSpace->setCheckable(true);
     pbSpaceAnticp->setCheckable(true);
     pbMemoire->setCheckable(true);
+    pbTrace->setCheckable(true);
 
     // Sans ca, un bouton garde le focus apres le clic et avale la barre
     // d'espace : elle rejouerait le bouton au lieu de lancer le flux.
@@ -93,6 +90,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), horloge() {
     pbSpace->setFocusPolicy(Qt::NoFocus);
     pbSpaceAnticp->setFocusPolicy(Qt::NoFocus);
     pbMemoire->setFocusPolicy(Qt::NoFocus);
+    pbTrace->setFocusPolicy(Qt::NoFocus);
     pbPause->setFocusPolicy(Qt::NoFocus);
     pbGeste->setFocusPolicy(Qt::NoFocus);
     pbPose->setFocusPolicy(Qt::NoFocus);
@@ -104,6 +102,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), horloge() {
     game->setAfficherTas(cbMEETas->isChecked());
     connect(cbPlan, &QCheckBox::toggled, game, &WGame::setAfficherPlan);
     game->setAfficherPlan(cbPlan->isChecked());
+
+    connect(cbTrace, &QCheckBox::toggled, game, &WGame::setAfficherTrace);
+    game->setAfficherTrace(cbTrace->isChecked());
     majPasAPas();
 
     game->setFixedSize(p->plateau()->getLargeur() * tailleCase(),
@@ -124,7 +125,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), horloge() {
     // La partie attend : le bouton dit donc "demarrer" et non "reprendre". Voir
     // MainWindow::enPause -- on regle tout (bot, enregistrement) avant que quoi
     // que ce soit ne bouge.
-    pbPause->setText(tr("démarrer"));
+    majBoutonPause();
 
     // Une seule horloge pour tout le jeu : c'est Partie qui sait, selon son
     // etat, s'il faut decompter avant le depart ou faire avancer le flux.
@@ -270,6 +271,10 @@ void MainWindow::annoncerManche() {
 }
 
 void MainWindow::rafraichir() {
+    // Le bouton change de metier a la fin de la partie : c'est ici qu'on s'en
+    // apercoit, rafraichir() etant appelee a chaque changement d'etat.
+    majBoutonPause();
+
     depart->setFraction(p->fractionAvantDepart());
     panneau->update();
     // La grille aussi : un changement d'etat peut signifier un plateau neuf.
@@ -278,33 +283,37 @@ void MainWindow::rafraichir() {
     capturerImage();
 }
 
-// Game over pendant un enregistrement : cette partie merite-t-elle d'etre
-// gardee ?
+// Fin de partie pendant un enregistrement : on ferme la prise.
 //
-// Le principe est de laisser tourner sans surveillance. Une partie qui atteint
-// le niveau vise fige tout -- enregistrement coupe, jeu en pause -- et on la
-// retrouve intacte au matin. Une partie qui echoue ne laisse rien : le jeu
-// enchaine tout seul sur une partie neuve (Partie::avancer le fait deja au game
-// over), la graine change, et la prise repart de zero en effacant la
-// precedente.
+// LA DERNIERE IMAGE EST LE VERDICT, et c'est tout l'objet de cette fonction.
+// La partie est deja dans son etat final quand on arrive ici -- la grille
+// dessine donc GAME OVER ou ABANDON par-dessus le plateau -- mais le credit
+// d'images n'a aucune raison d'etre arrive a un compte rond a cet instant
+// precis. Sans la prise forcee ci-dessous, la video se termine sur une image
+// quelconque prise jusqu'a un quarantieme de seconde plus tot, c'est-a-dire
+// sur le plateau sans son verdict.
 //
-// Le dossier ne contient donc jamais qu'une seule partie : soit celle qu'on
-// cherchait, soit celle qui est en train d'echouer.
+// Plus de critere de niveau. La prise se gardait autrefois sous condition --
+// niveau 40 atteint, sinon on recommencait toute la nuit -- et la partie
+// perdue enchainait d'elle-meme sur une neuve. Les deux sont tombes ensemble :
+// la fin de partie reste desormais a l'ecran, et c'est elle qu'on veut filmer.
+// Ce qui est enregistre est garde.
 void MainWindow::terminerPrise() {
-    if(niveauMax < NIVEAU_VIDEO) {
-        qInfo("--- prise abandonnee : niveau %d atteint, il en fallait %d."
-              " On recommence.", niveauMax, NIVEAU_VIDEO);
-        return;
-    }
+    // Un credit plein, et on prend : capturerImage refuse en dessous de un, et
+    // ce dernier sursaut de cadence ne se voit pas sur une image fixe qu'on
+    // regarde a la fin d'une video.
+    creditImage = 1.0f;
+    capturerImage();
 
     priseGardee = true;
     cbImages->setChecked(false);
 
-    // Et on fige : sans ca le jeu enchainerait sur une partie neuve, qui
-    // n'ecrirait rien (la case est decochee) mais qui tournerait pour rien
-    // jusqu'au matin.
+    // Et on fige. Plus rien ne repart tout seul depuis que la fin de partie
+    // reste a l'ecran, mais la pause coupe aussi le bot et les
+    // rafraichissements : la fenetre attend vraiment, jusqu'au matin s'il le
+    // faut, sur l'image qui termine la video.
     enPause = true;
-    pbPause->setText(tr("reprendre"));
+    majBoutonPause();
 
     qInfo("=== PRISE GARDEE : niveau %d, %d images dans images/"
           "   |   la partie :  --graine %u", niveauMax, imageSuivante, graineVue);
@@ -531,7 +540,8 @@ void MainWindow::battement() {
 
     // Fin de manche : c'est la que le journal peut dire quels gestes ont servi.
     if(journal != nullptr && p->etat() != avant
-       && (p->etat() == epReussie || p->etat() == epPerdue || p->etat() == epGameOver)) {
+       && (p->etat() == epReussie || p->etat() == epPerdue || p->etat() == epGameOver
+           || p->etat() == epAbandon)) {
         journal->finDeManche(p);
     }
 
@@ -565,7 +575,13 @@ void MainWindow::battement() {
         mancheAnnoncee = -1;
     }
 
-    if(avant != epGameOver && p->etat() == epGameOver && cbImages->isChecked()) {
+    // Fin de partie, quelle qu'elle soit : la prise se ferme. L'abandon compte
+    // autant que le game over -- c'est la meme derniere image, et plus rien ne
+    // viendra apres.
+    bool finieAvant = avant == epGameOver || avant == epAbandon;
+    bool finieApres = p->etat() == epGameOver || p->etat() == epAbandon;
+
+    if(!finieAvant && finieApres && cbImages->isChecked()) {
         terminerPrise();
     }
 
@@ -589,6 +605,21 @@ void MainWindow::battementUnitaire(float dt, bool joueLeBot) {
         // le journal est ouvert -- plutot que d'imposer a l'API des bots une
         // obligation de compte-rendu qui ne sert qu'a la mesure.
         Game avant(*p->plateau());
+        // Et les marques du tas, pour la meme raison et avec la meme reserve :
+        // origineTas dit ce que la case PORTE, pas qui vient de poser. Le trace
+        // qui reprend un rebut laisse la marque en place jusqu'au geste suivant,
+        // donc sans l'avant une reprise se lirait comme une defausse -- et c'est
+        // exactement la distinction que la colonne `origine` existe pour faire.
+        QVector<unsigned char> tasAvant;
+
+        if(journal != nullptr) {
+            tasAvant.resize(avant.getSize());
+
+            for(int i = 0; i < avant.getSize(); i++) {
+                tasAvant[i] = bot->origineTas(i % avant.getLargeur(),
+                                              i / avant.getLargeur());
+            }
+        }
 
         // Le bot joue avant Partie::avancer(), comme le clic du joueur precede
         // le battement suivant : c'est l'ordre du banc d'essai, et les deux
@@ -610,7 +641,25 @@ void MainWindow::battementUnitaire(float dt, bool joueLeBot) {
 
                     if(avant.getTypePiece(col, row) != p->plateau()->getTypePiece(col, row)
                        || avant.getSens(col, row) != p->plateau()->getSens(col, row)) {
-                        journal->geste(p, tempsSimule, col, row, true, true);
+                        unsigned char apres = bot->origineTas(col, row);
+                        unsigned char origine;
+
+                        if(avant.getTypePiece(col, row) == tpNone) {
+                            // Case vierge : la marque du tas ne peut venir que
+                            // de la pose qu'on est en train de consigner.
+                            origine = apres;
+                        } else if(apres != 0 && apres != tasAvant.at(i)) {
+                            // La marque a change : une defausse a ecrase une
+                            // piece. C'est la defausse qu'on compte.
+                            origine = apres;
+                        } else {
+                            // Marque inchangee sur une case occupee : le trace
+                            // reprend un rebut, ou une pose en remplace une
+                            // autre. Ni l'un ni l'autre n'est un placement neuf.
+                            origine = 4;
+                        }
+
+                        journal->geste(p, tempsSimule, col, row, true, true, origine);
                         break;
                     }
                 }
@@ -633,6 +682,7 @@ QString MainWindow::nomBotCourant() const {
     if(pbSpace->isChecked())       return "space";
     if(pbSpaceAnticp->isChecked()) return "spaceAnticp";
     if(pbMemoire->isChecked())     return "memoire";
+    if(pbTrace->isChecked())       return "trace";
 
     return QString();
 }
@@ -643,6 +693,14 @@ void MainWindow::installerBot(const QString &nom) {
     bot = nom.isEmpty() ? nullptr
                         : BotFactory::createInstance(nom, p, CADENCE_BOT, p->getGraine());
 
+    // Ici et nulle part ailleurs : c'est la fenetre qui a une image a ne pas
+    // figer. Le banc, lui, garde le calcul dans son thread -- deux mesures de
+    // la meme graine doivent rendre le meme chiffre, et un bot qui depend de
+    // l'instant ou un thread rend la main ne le peut pas.
+    if(bot != nullptr) {
+        bot->setPlanificationAsynchrone(true);
+    }
+
     // La grille n'affiche l'overlay du tas que tant qu'un bot joue.
     game->setBot(bot);
 
@@ -650,6 +708,7 @@ void MainWindow::installerBot(const QString &nom) {
     pbSpace->setChecked(nom == "space");
     pbSpaceAnticp->setChecked(nom == "spaceAnticp");
     pbMemoire->setChecked(nom == "memoire");
+    pbTrace->setChecked(nom == "trace");
 
     majPasAPas();
 }
@@ -672,6 +731,10 @@ void MainWindow::on_pbMemoire_clicked() {
     installerBot(pbMemoire->isChecked() ? "memoire" : QString());
 }
 
+void MainWindow::on_pbTrace_clicked() {
+    installerBot(pbTrace->isChecked() ? "trace" : QString());
+}
+
 // Simple bascule : un clic fige la partie (bot compris, battement() ne fait
 // plus rien), le suivant la relache. Sert a immobiliser l'ecran le temps d'une
 // copie d'ecran -- et, au lancement, a tout regler avant que rien ne parte.
@@ -681,10 +744,53 @@ void MainWindow::on_pbMemoire_clicked() {
 // synchrone -- la premiere image est le plateau intact, pas un plateau ou le
 // bot a deja pose trois pieces pendant qu'on cochait les cases.
 void MainWindow::on_pbPause_clicked() {
+    // PARTIE FINIE : le bouton change de metier. Mettre en pause ce qui ne
+    // bouge plus n'a aucun sens, et depuis que le game over reste a l'ecran il
+    // fallait bien un moyen de repartir -- autant celui-la, qui est deja sous
+    // la main et deja le bouton du "on y va".
+    if(partieFinie()) {
+        nouvellePartie();
+        return;
+    }
+
     enPause = !enPause;
     demarre = demarre || !enPause;
-    pbPause->setText(enPause ? (demarre ? tr("reprendre") : tr("démarrer"))
-                             : tr("pause"));
+    majBoutonPause();
+}
+
+bool MainWindow::partieFinie() const {
+    return p->etat() == epGameOver || p->etat() == epAbandon;
+}
+
+void MainWindow::nouvellePartie() {
+    p->nouvellePartie();
+
+    // Le bouton promet une partie, pas un plateau immobile : on releve la
+    // pause. Elle est le plus souvent deja levee -- sauf apres une prise
+    // gardee, qui fige tout, et c'est justement la qu'un clic veut dire "on
+    // repart".
+    enPause = false;
+    demarre = true;
+
+    // Meme raison qu'au changement de graine : le bot tient un tas, un plan de
+    // defausse et des interdits calcules sur le plateau d'avant.
+    if(bot != nullptr) {
+        installerBot(nomBotCourant());
+    }
+
+    rafraichir();
+}
+
+void MainWindow::majBoutonPause() {
+    QString libelle = partieFinie() ? tr("nouvelle partie")
+                    : enPause       ? (demarre ? tr("reprendre") : tr("démarrer"))
+                                    : tr("pause");
+
+    // Le meme texte ne se repose pas : rafraichir() passe ici a chaque
+    // battement des qu'un bot joue, et setText repeint le bouton.
+    if(pbPause->text() != libelle) {
+        pbPause->setText(libelle);
+    }
 }
 
 // Les deux boutons de geste n'ont de sens qu'en pas a pas, et il faut un bot

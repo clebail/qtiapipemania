@@ -46,13 +46,15 @@ int main(int argc, char *argv[])
     }
     MainWindow w;
 
-    // Quatre options de mise au point, a poser dans cet ordre : la graine refait
-    // la partie, les trois autres disent ou l'on y entre.
+    // Cinq options de mise au point, a poser dans cet ordre : la graine refait
+    // la partie, les trois suivantes disent ou l'on y entre, la derniere ouvre
+    // le carnet.
     //
-    //   --graine N   rejoue exactement cette partie
-    //   --niveau N   demarre au niveau N plutot qu'au premier
-    //   --vies N     demarre avec N vies (1 a VIES_MAX) au lieu de trois
-    //   --bombes N   demarre avec N bombes (0 a BOMBES_MAX) au lieu d'aucune
+    //   --graine N      rejoue exactement cette partie
+    //   --niveau N      demarre au niveau N plutot qu'au premier
+    //   --vies N        demarre avec N vies (1 a VIES_MAX) au lieu de trois
+    //   --bombes N      demarre avec N bombes (0 a BOMBES_MAX) au lieu d'aucune
+    //   --journal FICH  consigne un geste par ligne dans ce CSV (voir journal.h)
     //
     // A graine et niveau egaux, le plateau et la file sont identiques a la case
     // pres : c'est ce qui permet de revoir une manche qui s'est mal passee au
@@ -94,6 +96,20 @@ int main(int argc, char *argv[])
 
     if(lireEntier(args, "--bombes", 0, BOMBES_MAX, &bombes)) {
         w.setBombes(bombes);
+    }
+
+    // En dernier, et ce n'est pas indifferent : le journal date chacune de ses
+    // lignes du niveau courant, il doit donc s'ouvrir sur une partie deja
+    // reglee. Le fichier s'ouvre en AJOUT (voir Journal) -- plusieurs sessions
+    // s'y accumulent, la colonne `manche` repart a zero a chaque lancement.
+    int posJournal = args.indexOf("--journal");
+
+    if(posJournal >= 0) {
+        if(posJournal + 1 < args.size()) {
+            w.ouvrirJournal(args.at(posJournal + 1));
+        } else {
+            qWarning("--journal attend un chemin de fichier");
+        }
     }
 
     // La graine n'est plus annoncee ici mais a chaque manche, par la fenetre :

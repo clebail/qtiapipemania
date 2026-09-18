@@ -38,8 +38,9 @@ int main(int argc, char *argv[]) {
             EEtatPartie avant = p.etat();
 
             // Avec les vies, epPerdue ne finit plus la partie : il coute une
-            // vie et rejoue le meme niveau. Seul epGameOver arrete la boucle.
-            if(avant == epGameOver) {
+            // vie et rejoue le meme niveau. Seuls epGameOver et epAbandon
+            // arretent la boucle.
+            if(avant == epGameOver || avant == epAbandon) {
                 break;
             }
 

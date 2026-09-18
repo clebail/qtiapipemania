@@ -133,6 +133,73 @@ void WGame::setAfficherPlan(bool afficher) {
     update();
 }
 
+void WGame::setAfficherTrace(bool afficher) {
+    afficherTrace = afficher;
+    update();
+}
+
+// Le trace du bot fait autorite des qu'il y en a un : lui seul sait qu'il a
+// replanifie, et la grille ne doit pas montrer une autre intention que celle
+// qu'elle regarde s'executer.
+const Trace *WGame::traceAffiche() const {
+    if(bot != nullptr && bot->tracePlanifie() != nullptr) {
+        return bot->tracePlanifie();
+    }
+
+    return &trace;
+}
+
+quint32 WGame::signatureBlocs() const {
+    const Game *plateau = partie->plateau();
+    quint32 h = 2166136261u;
+
+    for(int i = 0; i < plateau->getSize(); i++) {
+        if(plateau->getTypePiece(i % plateau->getLargeur(),
+                                 i / plateau->getLargeur()) == tpBloque) {
+            h = (h ^ (quint32)i) * 16777619u;
+        }
+    }
+
+    return h;
+}
+
+void WGame::rafraichirTrace() {
+    if(partie == nullptr || (bot != nullptr && bot->tracePlanifie() != nullptr)) {
+        return;
+    }
+
+    const Game *plateau = partie->plateau();
+    quint32 blocs = signatureBlocs();
+
+    // La graine ET les blocs. La premiere change a chaque manche ; les seconds
+    // changent quand une bombe saute, au milieu d'une manche et sans que rien
+    // d'autre ne bouge -- et un trace qui contourne des blocs disparus n'est
+    // plus celui qu'il faut suivre.
+    if(trace.estCalcule() && trace.graine() == plateau->getGraine()
+       && blocs == empreinteBlocs) {
+        return;
+    }
+
+    empreinteBlocs = blocs;
+
+    // Le trace se planifie sur un terrain nu : Game est copiable exactement
+    // pour ce genre d'usage, et on n'y garde que ce qui ne bougera pas de la
+    // manche -- les blocs et le reservoir.
+    Game vierge(*plateau);
+
+    for(int i = 0; i < vierge.getSize(); i++) {
+        int col = i % vierge.getLargeur();
+        int row = i / vierge.getLargeur();
+        ETypePiece t = vierge.getTypePiece(col, row);
+
+        if(t != tpBloque && t != tpReservoir) {
+            vierge.setTypePiece(col, row, tpNone);
+        }
+    }
+
+    trace.calculer(&vierge, partie->longueurMinimale());
+}
+
 void WGame::setRegion(const QVector<unsigned char> &region) {
     this->region = region;
     update();
@@ -252,6 +319,45 @@ static void dessinerPlan(QPainter& painter, const QRectF& tuile, const ETypePiec
         }
 
         painter.drawLine(centre, bout);
+    }
+
+    painter.restore();
+}
+
+// Le trace planifie : le chemin de la gagne, du reservoir a l'objectif. Meme
+// trait que le plan de defausse -- une intention, pas une piece -- mais en VERT
+// et un peu plus epais. Les deux se superposent sans se confondre : l'ambre
+// pave le plateau de circuits ou jeter, le vert est le tuyau qu'on veut
+// vraiment. La premiere case porte un point plein, pour lire le sens.
+static void dessinerTrace(QPainter& painter, const QRectF& tuile,
+                          const ETypePiece& type, bool depart) {
+    static const QColor couleur(0x4f, 0xd6, 0x7a);
+
+    QPointF centre = tuile.center();
+    qreal demi = tuile.width() / 2.0;
+
+    painter.save();
+    painter.setPen(QPen(QColor(couleur.red(), couleur.green(), couleur.blue(), 190),
+                        qMax(1.0, tuile.width() * 0.055),
+                        Qt::SolidLine, Qt::RoundCap));
+
+    foreach(ESens s, Ecoulement::ouvertures(type, sHaut)) {
+        QPointF bout = centre;
+
+        switch(s) {
+        case sHaut:   bout.ry() -= demi; break;
+        case sBas:    bout.ry() += demi; break;
+        case sGauche: bout.rx() -= demi; break;
+        case sDroite: bout.rx() += demi; break;
+        }
+
+        painter.drawLine(centre, bout);
+    }
+
+    if(depart) {
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(couleur);
+        painter.drawEllipse(centre, tuile.width() * 0.13, tuile.width() * 0.13);
     }
 
     painter.restore();
@@ -452,6 +558,60 @@ static void dessinerOndeFlash(QPainter& painter, const QRectF& zone, float t) {
     painter.restore();
 }
 
+// LE VERDICT, en grand sur le plateau. Par-dessus tout, voile compris : la
+// partie est finie, le plateau derriere n'est plus qu'un decor -- mais un
+// decor qu'on veut encore lire, d'ou le voile plutot qu'un aplat.
+//
+// La taille se cherche au lieu de se fixer : le mot doit tenir dans la grille,
+// et la grille n'a pas la meme largeur selon l'ecran. Meme methode que le
+// panneau (WPanneau::tailleQuiTient), pour que les deux grandissent ensemble.
+//
+// Le double trait -- contour sombre epais, puis remplissage -- est ce qui rend
+// le mot lisible sur n'importe quel fond : sans lui, un tuyau clair sous une
+// lettre claire la mange.
+static void dessinerVerdict(QPainter& painter, const QRectF& grille, const QString& texte,
+                            const QColor& couleur) {
+    QFont police("monospace");
+
+    police.setStyleHint(QFont::TypeWriter);
+    police.setBold(true);
+
+    // On vise les quatre cinquiemes de la largeur utile : le mot doit respirer
+    // sur ses cotes, sinon il a l'air d'un bandeau et non d'un verdict.
+    int large = (int)(grille.width() * 0.8);
+    int retenue = 12;
+
+    for(int essai = 13; essai <= 400; essai++) {
+        police.setPixelSize(essai);
+
+        if(QFontMetrics(police).horizontalAdvance(texte) > large) {
+            break;
+        }
+
+        retenue = essai;
+    }
+
+    police.setPixelSize(retenue);
+
+    QFontMetrics mesure(police);
+    QPainterPath chemin;
+
+    chemin.addText(grille.center().x() - mesure.horizontalAdvance(texte) / 2.0,
+                   grille.center().y() + (mesure.ascent() - mesure.descent()) / 2.0,
+                   police, texte);
+
+    painter.save();
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(QColor(0, 0, 0, 150));
+    painter.drawRect(grille);
+
+    painter.setPen(QPen(QColor(0, 0, 0, 220), qMax(2.0, retenue * 0.08),
+                        Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    painter.setBrush(couleur);
+    painter.drawPath(chemin);
+    painter.restore();
+}
+
 static void dessinerMarqueurPari(QPainter& painter, const QRectF& tuile) {
     static const QColor couleur(0xd8, 0x54, 0x54);
 
@@ -563,6 +723,28 @@ void WGame::paintEvent(QPaintEvent *) {
             // reste : ni le plan ni le tas ne peuvent occuper une case minee.
             if(type == tpBombe && reste >= 0.0f) {
                 dessinerCompteARebours(painter, dest, reste);
+            }
+        }
+    }
+
+    // Le trace planifie, sous les tuyaux comme le plan : c'est une intention.
+    // Il ne demande aucun bot -- il ne depend que du plateau.
+    if(afficherTrace) {
+        rafraichirTrace();
+
+        const Trace *dessine = traceAffiche();
+
+        for(int y=0;y<plateau->getHauteur();y++) {
+            for(int x=0;x<plateau->getLargeur();x++) {
+                ETypePiece voulu = dessine->type(x, y);
+
+                if(voulu == tpNone) {
+                    continue;
+                }
+
+                QRectF dest(x*spriteW + margeX, y*spriteH + margeY, spriteW, spriteH);
+
+                dessinerTrace(painter, dest, voulu, dessine->rang(x, y) == 0);
             }
         }
     }
@@ -763,6 +945,23 @@ void WGame::paintEvent(QPaintEvent *) {
         }
 
         painter.restore();
+    }
+
+    // Et le verdict tout en haut de la pile, quand il y en a un. Les fins de
+    // MANCHE n'en ont pas : le panneau les annonce deja, elles durent une
+    // seconde, et masquer le plateau a chaque niveau rendrait la partie
+    // illisible. Seules les fins de PARTIE s'affichent ici -- elles ne
+    // s'enchainent sur rien, on reste dessus.
+    if(partie->etat() == epGameOver || partie->etat() == epAbandon) {
+        static const QColor cPerdu(0xd8, 0x50, 0x40);
+        static const QColor cAbandon(0xc8, 0xa8, 0x40);
+
+        QRectF grille(margeX, margeY,
+                      plateau->getLargeur() * spriteW, plateau->getHauteur() * spriteH);
+
+        dessinerVerdict(painter, grille,
+                        partie->etat() == epGameOver ? tr("GAME OVER") : tr("ABANDON"),
+                        partie->etat() == epGameOver ? cPerdu : cAbandon);
     }
 }
 

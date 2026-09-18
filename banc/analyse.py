@@ -5,9 +5,17 @@ import math
 import sys
 
 
-def lire(chemin):
+def lire(chemin, champ=0):
+    """Une ligne par partie. Une ou deux colonnes (niveau, puis score) :
+    on ne lit que celle qu'on demande, pour que les relevés d'avant restent
+    comparables à ceux d'après."""
+    valeurs = []
     with open(chemin) as f:
-        return [int(l) for l in f if l.strip().isdigit()]
+        for ligne in f:
+            morceaux = ligne.split()
+            if len(morceaux) > champ and morceaux[champ].lstrip("-").isdigit():
+                valeurs.append(int(morceaux[champ]))
+    return valeurs
 
 
 def moyenne(xs):
@@ -29,14 +37,15 @@ def mediane(xs):
     return ys[n // 2] if n % 2 else (ys[n // 2 - 1] + ys[n // 2]) / 2
 
 
-av = lire(sys.argv[1])
-ap = lire(sys.argv[2])
+champ = int(sys.argv[3]) if len(sys.argv) > 3 else 0
+av = lire(sys.argv[1], champ)
+ap = lire(sys.argv[2], champ)
 n = min(len(av), len(ap))
 av, ap = av[:n], ap[:n]
 
-print(f"parties appariées : {n}\n")
+print(f"parties appariées : {n}   ({'score' if champ else 'niveau'})\n")
 print(f"{'':22} {'avant':>8} {'après':>8}")
-print(f"{'niveau moyen':22} {moyenne(av):>8.2f} {moyenne(ap):>8.2f}")
+print(f"{'moyenne':22} {moyenne(av):>8.2f} {moyenne(ap):>8.2f}")
 print(f"{'médiane':22} {mediane(av):>8.1f} {mediane(ap):>8.1f}")
 print(f"{'écart-type':22} {ecart_type(av):>8.2f} {ecart_type(ap):>8.2f}")
 print(f"{'min / max':22} {min(av):>4}/{max(av):<3} {min(ap):>4}/{max(ap):<3}")

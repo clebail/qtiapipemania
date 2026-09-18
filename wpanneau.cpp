@@ -259,6 +259,7 @@ void WPanneau::dessinerEtat(QPainter& painter, int y, int tailleScore) {
     static const QColor cVif(0x6e, 0xd8, 0xff);
     static const QColor cReussi(0x2f, 0xbf, 0x4f);
     static const QColor cPerdu(0xd8, 0x50, 0x40);
+    static const QColor cAbandon(0xc8, 0xa8, 0x40);
 
     // Les etats courants -- attente et ecoulement -- n'ont pas de titre : les
     // deux compteurs disent deja ou en est la manche, et le mot ne faisait que
@@ -281,6 +282,10 @@ void WPanneau::dessinerEtat(QPainter& painter, int y, int tailleScore) {
     case epGameOver:
         titre = tr("GAME OVER");
         couleur = cPerdu;
+        break;
+    case epAbandon:
+        titre = tr("ABANDON");
+        couleur = cAbandon;
         break;
     }
 

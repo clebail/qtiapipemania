@@ -5,6 +5,8 @@
 #include <QPair>
 #include "partie.h"
 
+class Trace;
+
 class Bot
 {
 public:
@@ -73,6 +75,17 @@ public:
     // poser sur la tete de construction.
     bool estTas(int col, int row) const;
 
+    // Le code d'origine que le tas porte sur cette case, 0 quand elle n'est pas
+    // au tas : 1 = defausse selon le plan, 2 = pre-pose de l'anticipation,
+    // 3 = defausse sur un pari. C'est estTas/estAnticipee/estPari en un seul
+    // appel, pour le journal qui veut la valeur et non trois questions.
+    //
+    // ATTENTION, c'est l'etat de la CASE et non l'auteur du dernier geste : une
+    // pose du trace sur un rebut laisse la marque en place jusqu'a ce que
+    // Bot::tete() la convertisse, au geste suivant. Qui veut savoir d'ou vient
+    // une pose doit comparer l'avant et l'apres (voir MainWindow::battement).
+    unsigned char origineTas(int col, int row) const;
+
     // Vrai si poser une piece de ce type sur la tete (col, row, entree)
     // condamne la manche : son unique sortie -- la croix va tout droit -- bute
     // sur un mur, une case bloquee, ou une piece deja posee qu'on ne pourra ni
@@ -80,6 +93,36 @@ public:
     // pieces du tas se reprennent). Le type est suppose compatible avec
     // `entree`, tel que le renvoie Ecoulement::piecesCompatibles().
     bool meneALaMort(const ETypePiece& type, int col, int row, ESens entree) const;
+
+    // Le trace planifie que ce bot suit, nul pour ceux qui n'en ont pas -- donc
+    // pour tous sauf BotTrace. La grille s'en sert pour dessiner la ligne verte
+    // : sans ca elle refait le calcul dans son coin, et les deux divergent des
+    // qu'une bombe a saute, puisque le bot replanifie et pas elle.
+    virtual const Trace *tracePlanifie() const;
+
+    // Le bot a-t-il le droit de calculer hors du thread qui l'appelle ?
+    //
+    // Non par defaut, et ce defaut-la est le bon : le banc doit rendre deux
+    // fois le meme chiffre pour la meme graine, et un bot dont les gestes
+    // dependent de l'instant ou un thread rend la main ne le peut pas. Toute
+    // la methode de mesure du projet -- comparaison appariee, quelques
+    // centiemes de niveau moyen -- repose la-dessus.
+    //
+    // La fenetre, elle, l'allume : c'est la seule qui ait un affichage a ne
+    // pas geler, et la seule ou le determinisme ne se mesure pas. Voir
+    // BotTrace::planifier, le seul calcul assez long pour se voir.
+    void setPlanificationAsynchrone(bool oui);
+
+    // Combien de rejeux RIGOUREUSEMENT identiques d'affilee font jeter
+    // l'eponge, zero pour ne jamais abandonner. Deux par defaut.
+    //
+    // Pourquoi deux et pas un : le premier rejeu identique est une
+    // information -- il dit que le bot a rejoue son coup sans rien changer --
+    // le second dit que la boucle est fermee, et il n'y a plus de raison
+    // qu'elle s'ouvre. Meme plateau, meme file, memes gestes : la troisieme
+    // manche sera la copie des deux premieres, et les six vies qui restent
+    // ne feront que la repeter.
+    void setRejeuxAvantAbandon(int rejeux);
 
     // Vrai quand le bot reclame la barre d'espace : lancer le flux tout de
     // suite et derouler la fin sans attendre. La fenetre la lui accorde
@@ -152,7 +195,55 @@ protected:
     // creation et a chaque changement de manche, pas plus : c'est une recherche
     // de quelques dizaines de millisecondes, gratuite une fois par manche mais
     // hors de question a chaque geste.
-    void construirePlan();
+    //
+    // Virtuelle pour le seul bot qui ait quelque chose a faire AVANT le pavage :
+    // celui qui planifie un trace doit l'avoir calcule pour pouvoir le masquer
+    // (voir reserveeAuTrace). Les deux points d'appel -- changement de manche et
+    // explosion de la bombe -- sont exactement ceux ou le trace se refait, ce
+    // qui evite un second declencheur a tenir en phase avec celui-ci.
+    virtual void construirePlan();
+    // Cette case est-elle reservee, donc interdite au reseau de defausse ?
+    // Faux partout par defaut : sans trace planifie, le bot ne sait pas ou il
+    // ira, et c'est justement ce qui oblige a paver le plateau entier.
+    //
+    // Un trace, lui, supprime l'ignorance la ou elle coutait : ses cases ont un
+    // type connu, pas parie. Elles sortent donc du pavage -- passees a
+    // construirePlan comme des pseudo-blocs -- et la defausse n'a plus le droit
+    // d'y tomber, filet de securite compris. Pas pour les points : une case du
+    // tas qui ne raccorde pas est precisement la ou Bot::tete() fait
+    // reconstruire, et le bot brulerait un geste a reecrire ce qu'il vient de
+    // poser. Voir TRACE.md, §6.
+    virtual bool reserveeAuTrace(int col, int row) const;
+    // Le drapeau pose par setPlanificationAsynchrone.
+    bool planificationAsynchrone() const;
+    // LE REJEU QUI TOURNE EN ROND. Appelee a chaque battement : a la fin de
+    // chaque manche perdue, regarde si le rejeu a fait MIEUX que les
+    // precedents du meme niveau, et jette l'eponge (Partie::abandonner) quand
+    // plusieurs de suite n'apportent rien.
+    //
+    // Le juge est le PLAN, pas la manche. Deux criteres ont ete essayes et
+    // jetes, et ils se trompaient de grandeur :
+    //
+    //   - l'empreinte du plateau final, "deux manches identiques case par
+    //     case" : trop strict. La file connue grandit d'un rejeu a l'autre,
+    //     donc le trace change un peu, donc la manche n'est jamais exactement
+    //     la meme -- le bot rejouait indefiniment sans jamais abandonner ;
+    //   - les traversees du rejeu : trop instable. Sur `--graine 1188181038
+    //     --niveau 38`, elles oscillent entre 20 et 133 d'un rejeu a l'autre
+    //     pour un MEME plan. Juger la-dessus, c'est abandonner sur deux
+    //     malchances ou jamais sur un coup de bol.
+    //
+    // Ce qui est stable, et connu avant meme de jouer, c'est ce que le plan
+    // permet : un trace de 130 pour un objectif de 158 ne gagnera pas, quelle
+    // que soit la chance du rejeu. Le user : "un coup il va jusqu'a 130 et
+    // quelques, un coup jusque vers 20, mais le trace reste a 130, c'est ca
+    // qui compte."
+    void surveillerRejeu();
+    // Ce niveau est-il sans espoir ? Faux partout par defaut : un bot qui ne
+    // planifie pas ne peut pas le savoir, et ne doit donc jamais abandonner.
+    // Celui qui planifie, si -- son trace est trop court et plus une bombe ne
+    // viendra le rallonger.
+    virtual bool niveauSansEspoir() const;
     // Pose la marque des cases obligees, a la fin de construirePlan et donc sur
     // un plateau encore vide. Voir planObligatoire pour ce que "oblige" veut
     // dire, et le commentaire d'ISSUE_MINIMALE dans bot.cpp pour le seuil qui
@@ -302,7 +393,42 @@ protected:
     // de la manche moins le tuyau deja raccorde au reservoir. Zero une fois
     // l'objectif acquis -- il n'y a alors plus rien a securiser, le bonus se
     // construit sans filet.
+    //
+    // Zero AUSSI quand la manche est perdue d'avance (rienAPerdre) : l'objectif
+    // n'est pas une contrainte a respecter mais une contrainte a satisfaire, et
+    // une contrainte insatisfiable ne se respecte pas -- elle paralyse. Voir
+    // rienAPerdre pour ce que ca change en aval, qui est beaucoup.
     int objectifRestant() const;
+    // La manche est-elle perdue d'avance ? Faux partout par defaut : aucun bot
+    // ne sait le dire avant de l'avoir jouee. Celui qui planifie son trace, si
+    // -- des le premier battement, et sans appel (voir BotTrace).
+    //
+    // Ce que ca change : TOUTE la securite de placement passe par
+    // objectifRestant, qui la rend a zero. culDeSac retombe sur le seul "ne pas
+    // mourir sur le coup", placeExigee n'est plus consultee, chaineViable ne
+    // demande plus qu'une case, marquerObligations revient a ISSUE_MINIMALE. Le
+    // bot cesse de se reserver de la place pour un objectif qu'il n'atteindra
+    // pas, et va chercher des traversees -- 50 points chacune -- avec
+    // l'anticipation pour seule boussole.
+    //
+    // La raison est du user, et elle est courte : "il n'a plus rien a perdre,
+    // soit il score, soit il a deja perdu et il joue pour la gloire". Le
+    // contraire etait le pire des deux mondes -- un bot qui garde une reserve
+    // pour une victoire impossible defausse au lieu de poser, et finit la
+    // manche perdue ET sans points.
+    //
+    // "Deja perdu" est mesure, et sans nuance : sur 25 parties entieres
+    // (2026-09-19), une manche dont le trace planifie est plus court que
+    // l'objectif au depart du flux est perdue 228 fois sur 228. Quand le
+    // trace suffit, la meme manche est gagnee 829 fois sur 865. Il n'y a
+    // donc rien a sacrifier en levant le filet : il n'y a plus de manche a
+    // sauver, seulement des traversees a encaisser.
+    virtual bool rienAPerdre() const;
+    // L'objectif est-il DANS LA POCHE ? La question brute, celle que
+    // objectifRestant ne repond plus depuis qu'il se tait aussi pour les
+    // manches perdues : les deux cas valent zero et n'appellent pas le meme
+    // bot (voir BotTrace::jouer).
+    bool objectifAcquis() const;
     // Vrai si poser `type` sur cette tete engage le trace dans un cul-de-sac :
     // la place encore atteignable derriere la pose ne suffit plus a boucler
     // l'objectif. C'est meneALaMort prolonge au-dela de la premiere case, et il
@@ -335,6 +461,33 @@ protected:
     // presse encore. Un bot s'en sert pour savoir s'il a encore le luxe de
     // defausser une piece plutot que de la poser.
     bool acculeParLeFlux(float margeGestes) const;
+    // Faut-il poser une bombe maintenant ? Appelee a chaque battement pendant
+    // l'attente, stock non vide. Voir bot.cpp pour la regle de base, et
+    // BotTrace pour celle qu'un trace planifie rend calculable.
+    virtual bool bomberMaintenant() const;
+    // La bombe de CET essai est-elle deja posee ? Une par essai, c'est la
+    // regle de BOMBES.md -- et la perturbation d'un rejeu n'en demande pas
+    // deux non plus.
+    bool bombeDejaPosee() const;
+    // Une bombe posee par le bot n'a pas encore saute. Tant qu'elle brule, le
+    // plateau va changer : ce qu'on poserait maintenant sera peut-etre perime,
+    // et surtout il ne faut pas finir la manche avant l'explosion.
+    bool bombeEnAttente() const;
+    // Essais du niveau courant, celui-ci compris : 1 au premier passage, 2 au
+    // premier rejeu. C'est lui qui dit au bot qu'il rejoue -- et, depuis que le
+    // rejeu est parfait, qu'il connait deja la file.
+    int essaiDuNiveau() const;
+    // La case a bomber : celle dont le souffle emporte le plus de blocs. Seul
+    // critere de ciblage depuis la mesure du 2026-09-17 -- voir le commentaire
+    // dans bot.cpp pour ce qu'il a remplace et ce que ca vaut.
+    //
+    // Virtuelle pour le bot qui planifie : lui sait ce qu'une bombe doit
+    // acheter -- de la longueur de trace -- et peut donc l'essayer avant de la
+    // poser, au lieu de viser un proxy. Voir BotTrace.
+    virtual bool choisirPaquetDeBlocs(int &col, int &row) const;
+    // Pose la bombe quand bomberMaintenant() le dit, et refait le plan quand
+    // elle a saute. Appelee a chaque battement, avant jouer().
+    void gererBombes();
     // Pose une bombe sur cette case et la retire du stock. Elle est perdue
     // pour de bon : ni rendue a l'explosion, ni au rejeu, ni si la manche finit
     // avant qu'elle ait saute. False si le stock est vide, si la manche est
@@ -407,13 +560,6 @@ private:
     QVector<unsigned char> entreeTete;
     // Refait des que le plateau bouge -- voir planObligatoire.
     QVector<unsigned char> oblige;
-    // La case a bomber : celle dont le souffle emporte le plus de blocs. Seul
-    // critere de ciblage depuis la mesure du 2026-09-17 -- voir le commentaire
-    // dans bot.cpp pour ce qu'il a remplace et ce que ca vaut.
-    bool choisirPaquetDeBlocs(int &col, int &row) const;
-    // Pose la bombe du rejeu, et refait le plan quand elle a saute. Appelee a
-    // chaque battement, avant jouer().
-    void gererBombes();
 
     // Etat du plateau au dernier marquage, pour ne pas le refaire pour rien.
     quint32 signatureVue = 0;
@@ -432,6 +578,16 @@ private:
     // Barre d'espace demandee. Comme pour le joueur, sans retour : ne retombe
     // qu'a la manche suivante, quand la graine de plateau change.
     bool fonce = false;
+    // Calcul hors thread autorise. Voir setPlanificationAsynchrone.
+    bool planAsynchrone = false;
+    // --- le rejeu qui tourne en rond (surveillerRejeu) --------------------
+    //
+    // Rejeux consecutifs joues sans espoir, et le drapeau qui garantit qu'une
+    // manche n'est jugee qu'une fois -- la fin de manche dure plusieurs
+    // battements.
+    int rejeuxSansEspoir = 0;
+    bool mancheJugee = false;
+    int rejeuxAvantAbandon = 2;
 };
 
 #endif // BOT_H

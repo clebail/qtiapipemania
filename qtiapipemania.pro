@@ -25,6 +25,7 @@ SOURCES += \
     botspace.cpp \
     botspaceanticp.cpp \
     botmemoire.cpp \
+    bottrace.cpp \
     botfactory.cpp \
     common.cpp \
     dessinpiece.cpp \
@@ -36,6 +37,7 @@ SOURCES += \
     minage.cpp \
     partie.cpp \
     piecefile.cpp \
+    trace.cpp \
     wdepart.cpp \
     wgame.cpp \
     wpanneau.cpp
@@ -46,6 +48,7 @@ HEADERS += \
     botspace.h \
     botspaceanticp.h \
     botmemoire.h \
+    bottrace.h \
     botfactory.h \
     common.h \
     dessinpiece.h \
@@ -56,6 +59,7 @@ HEADERS += \
     minage.h \
     partie.h \
     piecefile.h \
+    trace.h \
     wdepart.h \
     wgame.h \
     wpanneau.h

@@ -468,10 +468,29 @@ void BotMemoire::desamorcer(int col, int row, ESens entree) {
 
 bool BotMemoire::poseAcceptable(const ETypePiece& type, int col, int row, ESens entree,
                                 bool strict) const {
-    // Veto DUR tant qu'il reste une vie a depenser ; sur la derniere il ne vaut
-    // plus que par la passe preferentielle de choisirPont, qui leve vetoForce
-    // apres coup. Le bot joue alors pour survivre, plus pour explorer.
-    if((vetoForce || p->vies() > 1) && interdite(col, row, entree, type)) {
+    // MANCHE PERDUE D'AVANCE : plus de veto du tout. Un interdit sert a
+    // bifurquer vers une route gagnante ; quand aucune route ne gagne, il ne
+    // fait plus qu'interdire.
+    //
+    // Et il interdit tot : la liste de blame est triee par gravite, a gravite
+    // egale le carrefour le plus amont passe d'abord, et sur une manche
+    // imprenable le trace est si court que le journal tient en quelques
+    // carrefours -- c'est donc souvent le PREMIER geste qui se retrouve sous
+    // veto. Le bot arrivait a la tete, n'y trouvait aucun pont acceptable,
+    // pontForce echouait pour la meme raison, et il partait defausser. A
+    // chaque battement, jusqu'au bout de la manche, sans poser une piece :
+    // observe par le user, "du coup le bot ne fait rien, c'est dommage".
+    //
+    // Ce que ca vaut, mesure le 2026-09-19 PAR-DESSUS rienAPerdre, qui a deja
+    // fait le gros du travail : -56 points sur 30 parties depuis le niveau 34
+    // (t = -0,38) et -227 sur 40 depuis le niveau 45 (t = -1,03). Neutre,
+    // donc, et c'est bien le point : le veto ne se supprime pas ici pour les
+    // points mais pour ce qui se voit -- un bot qui pose cinq pieces et meurt
+    // parce qu'un interdit l'a pousse dans le mauvais couloir. Le prix a
+    // l'image est ailleurs : sans veto, tous les rejeux d'une manche perdue
+    // sont rigoureusement identiques.
+    if(!rienAPerdre() && (vetoForce || p->vies() > 1)
+       && interdite(col, row, entree, type)) {
         return false;
     }
 
@@ -479,7 +498,9 @@ bool BotMemoire::poseAcceptable(const ETypePiece& type, int col, int row, ESens 
 }
 
 int BotMemoire::choisirPont(int col, int row, ESens entree, bool strict) const {
-    if(p->vies() > 1) {
+    // Rien a perdre : poseAcceptable ignore deja les interdits, la passe
+    // preferentielle n'aurait rien a preferer.
+    if(rienAPerdre() || p->vies() > 1) {
         // Le veto mord de lui-meme, par poseAcceptable. S'il ne reste rien, on
         // s'y tient : desamorcer() a deja ecarte le cas ou il condamne la tete,
         // donc ce qui reste est une attente, pas un suicide.

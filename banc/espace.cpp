@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
         for(long tick = 0; tick < 40000000L; tick++) {
             EEtatPartie avant = p.etat();
 
-            if(avant == epGameOver) {
+            if(avant == epGameOver || avant == epAbandon) {
                 break;
             }
 

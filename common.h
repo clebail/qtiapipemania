@@ -56,7 +56,12 @@ typedef enum _EEtatPartie {
     // seule remet les compteurs a zero. Les confondre -- ce que faisait
     // epPerdue -- rendait la vie impossible a depenser.
     epPerdue,       // manche perdue : le flux s'est arrete trop tot, il reste des vies
-    epGameOver      // plus de vie : la partie est finie
+    // Les deux FINS, et elles ne se distinguent que par le mot affiche : la
+    // partie s'arrete ou elle en est, plateau intact, et rien ne repart. Voir
+    // Partie::avancer, qui enchaine sur les etats d'au-dessus et sur ceux-ci
+    // ne fait plus rien.
+    epGameOver,     // plus de vie : la partie est finie
+    epAbandon       // l'eponge jetee : plus rien a tenter, on s'arrete la
 } EEtatPartie;
 
 #endif // COMMON_H

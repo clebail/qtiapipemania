@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QElapsedTimer>
 #include "partie.h"
+#include "trace.h"
 
 class Bot;
 class QTimer;
@@ -31,6 +32,11 @@ public:
     // Affiche ou non le plan de defausse : le reseau que le bot vise quand il
     // jette une piece, en trait fin par-dessus le plateau.
     void setAfficherPlan(bool afficher);
+    // Affiche ou non le TRACE PLANIFIE : le chemin unique du reservoir a
+    // l'objectif, en vert. Rien a voir avec le plan de defausse, qui pave le
+    // plateau de circuits fermes -- celui-ci est le tuyau de la gagne, et il ne
+    // depend d'aucun bot. Voir TRACE.md.
+    void setAfficherTrace(bool afficher);
     // Releve les bombes qui viennent de sauter et arme leur flash. Appelee par
     // la fenetre apres avoir avance la partie : une explosion ne laisse aucune
     // trace sur le plateau, elle ne se lit qu'a l'instant ou elle a lieu.
@@ -51,6 +57,16 @@ private:
     Bot *bot = nullptr;
     bool afficherTas = true;
     bool afficherPlan = false;
+    bool afficherTrace = false;
+    // Le trace calcule par la grille elle-meme, pour quand aucun bot n'en
+    // fournit : recalcule quand la graine du plateau change -- c.-a-d. a chaque
+    // nouvelle manche, meme signal que les bots -- et quand une explosion a
+    // change les blocs. Voir rafraichirTrace().
+    Trace trace;
+    // Les blocs du dernier calcul. La graine ne suffit pas : une bombe qui
+    // saute ouvre du terrain sans que la manche change, et le chemin qui
+    // contournait ces blocs n'est plus le bon.
+    quint32 empreinteBlocs = 0;
     QVector<unsigned char> region;
     QPoint caseSurvolee = QPoint(-1, -1);
     // Les flashs en cours, et l'horloge qui les date. Un QTimer a nous plutot
@@ -60,6 +76,18 @@ private:
     QElapsedTimer horlogeEcran;
     QTimer *animation = nullptr;
 
+    // Recalcule le trace s'il est perime. Toujours sur un plateau NEUF : on
+    // repart d'une copie ou tout ce qui n'est ni bloc ni reservoir est efface,
+    // pour que cocher la case en cours de manche montre le trace tel qu'il
+    // aurait ete planifie au depart, et non un trace faufile entre les pieces
+    // deja posees.
+    void rafraichirTrace();
+    // Le trace a dessiner : celui du bot quand il en planifie un -- c'est alors
+    // exactement ce qu'il suit, replanifications comprises -- sinon celui que
+    // la grille calcule pour le joueur.
+    const Trace *traceAffiche() const;
+    // Empreinte des cases bloquees du plateau courant.
+    quint32 signatureBlocs() const;
     int spriteWidth() const;
     int spriteHeight() const;
     QPoint caseSous(const QPoint& position) const;
