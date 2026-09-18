@@ -8,6 +8,7 @@
 
 #include "botfactory.h"
 #include "journal.h"
+#include "serveurcontrole.h"
 
 // Cadence des bots joues a l'ecran. Deux poses par seconde, c'est le milieu de
 // la fourchette que BOT.md prete a un humain en reflexion continue -- et c'est
@@ -74,6 +75,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), horloge() {
 
     p = new Partie(COLONNES_PLATEAU, LIGNES_PLATEAU);
 
+    // Apres la partie, qu'il tient -- d'ou le pointeur plutot qu'un membre
+    // construit dans la liste d'initialisation, ou l'ordre depend de l'ordre de
+    // declaration et non de celui qu'on ecrit.
+    controle = new Controle(p, this);
+    serveur = new ServeurControle(controle, this);
+    connect(serveur, &ServeurControle::etatChange, this, &MainWindow::serveurChange);
+
     game->setPartie(p);
     panneau->setPartie(p);
 
@@ -137,7 +145,14 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), horloge() {
 }
 
 MainWindow::~MainWindow() {
-    // Les dernieres images d'abord : elles tiennent un semaphore de cet objet,
+    // Le serveur d'abord : il tient un pointeur sur le controle, qui tient la
+    // partie qu'on s'apprete a detruire.
+    delete serveur;
+    serveur = nullptr;
+    delete controle;
+    controle = nullptr;
+
+    // Les dernieres images ensuite : elles tiennent un semaphore de cet objet,
     // et une prise se termine entiere ou ne sert a rien.
     encodeurs.waitForDone();
 
@@ -201,7 +216,7 @@ void MainWindow::pieceDeposee(int col, int row, bool accepte) {
     }
 
     if(journal != nullptr) {
-        journal->geste(p, tempsSimule, col, row, accepte, false);
+        journal->geste(p, tempsSimule_, col, row, accepte, false);
     }
 
     rafraichir();
@@ -215,6 +230,14 @@ void MainWindow::bombePosee(int, int, bool) {
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event) {
+    // Troisieme porte fermee quand un script pilote : la barre d'espace engage
+    // la manche pour de bon (elle lance le flux et fait foncer, sans retour).
+    // Le script a la commande `espace` pour ca -- et lui seul.
+    if(cbServeur->isChecked()) {
+        QMainWindow::keyPressEvent(event);
+        return;
+    }
+
     if(event->key() == Qt::Key_Space && !event->isAutoRepeat()) {
         // Espace veut dire "je n'attends pas", et c'est au joueur d'en decider.
         // Aucun test d'etat ici : la touche fait tout ce qu'elle peut faire, et
@@ -590,13 +613,19 @@ void MainWindow::battement() {
     // Avec un bot en revanche, le plateau et la file changent a n'importe quel
     // battement sans qu'aucun signal ne l'annonce : poserPiece() n'est pas
     // WGame::pieceDeposee.
-    if(p->etat() != avant || p->etat() == epAttente || bot != nullptr) {
+    //
+    // Un SCRIPT est exactement dans la meme position : le serveur de controle
+    // appelle Partie::poserPiece sans passer par la grille. Sans cette clause,
+    // la file et les compteurs se figeaient des le depart du flux -- ils ne se
+    // rafraichissaient qu'en attente, ou l'etat suffit a declencher le repaint.
+    if(p->etat() != avant || p->etat() == epAttente
+       || bot != nullptr || cbServeur->isChecked()) {
         rafraichir();
     }
 }
 
 void MainWindow::battementUnitaire(float dt, bool joueLeBot) {
-    tempsSimule += dt;
+    tempsSimule_ += dt;
 
     if(bot != nullptr && joueLeBot) {
         Piece sommet = p->file()->getPiece(0);
@@ -659,7 +688,7 @@ void MainWindow::battementUnitaire(float dt, bool joueLeBot) {
                             origine = 4;
                         }
 
-                        journal->geste(p, tempsSimule, col, row, true, true, origine);
+                        journal->geste(p, tempsSimule_, col, row, true, true, origine);
                         break;
                     }
                 }
@@ -735,6 +764,127 @@ void MainWindow::on_pbTrace_clicked() {
     installerBot(pbTrace->isChecked() ? "trace" : QString());
 }
 
+// --- HoteControle -----------------------------------------------------------
+
+void MainWindow::mettreEnPause(bool pause) {
+    enPause = pause;
+    demarre = demarre || !pause;
+    // Le libelle a quatre etats depuis que la fin de partie reste a l'ecran :
+    // c'est majBoutonPause qui les connait, ici on ne fait que la declencher.
+    majBoutonPause();
+}
+
+bool MainWindow::estEnPause() const {
+    return enPause;
+}
+
+// Avance de n battements, exactement comme le ferait l'horloge -- meme dt
+// nominal, meme ordre, meme acceleration. C'est ce qui rend une partie pilotee
+// rejouable : le script decide du temps, pas le reseau.
+//
+// Le bot ne joue pas : verrouillerPourServeur l'a retire. Le seul joueur est
+// celui qui envoie les commandes.
+void MainWindow::avancerDeBattements(int n) {
+    float dt = horloge.interval() / 1000.0f;
+
+    for(int i = 0; i < n; i++) {
+        battementUnitaire(dt, false);
+    }
+
+    rafraichir();
+}
+
+void MainWindow::espace() {
+    foncer();
+    rafraichir();
+}
+
+// Le temps de jeu, pas celui de la montre : il monte de 16 ms par battement,
+// donc il vaut la meme chose que le jeu tourne a sa vitesse ou qu'un script
+// l'avance pas a pas. C'est ce qui permet de tarifer les gestes pareil dans les
+// deux regimes.
+float MainWindow::tempsSimule() const {
+    return this->tempsSimule_;
+}
+
+// L'horloge appartient au client tant que personne ne pilote. Des qu'un script
+// est aux commandes, elle lui echappe : le jeu tourne en temps reel, et sa
+// reflexion se paie comme celle d'un joueur.
+bool MainWindow::horlogeVerrouillee() const {
+    return cbServeur->isChecked();
+}
+
+// Le jeu attend un client, puis repart. Figer pendant l'attente evite que le
+// script herite d'un plateau deja entame ; le relacher a la connexion fait que
+// la partie commence avec lui, et pas avant.
+void MainWindow::serveurChange() {
+    if(cbServeur->isChecked()) {
+        mettreEnPause(!serveur->clientConnecte());
+    }
+
+    rafraichir();
+}
+
+void MainWindow::partieRemplacee() {
+    // Le bot tenait un tas et un plan calcules sur le plateau precedent. En
+    // mode serveur il n'y en a pas, mais cette methode sert aussi hors serveur.
+    if(bot != nullptr) {
+        installerBot(nomBotCourant());
+    }
+
+    mancheAnnoncee = -1;
+    graineVue = p->getGraine();
+    niveauMax = p->niveau();
+    rafraichir();
+}
+
+// Les trois portes par lesquelles on entre dans le jeu : la souris sur la
+// grille, le clavier, et le bot. Quand un script pilote, elles se ferment
+// toutes -- sinon deux joueurs poseraient dans la meme partie sans le savoir,
+// et le script verrait un plateau qu'il n'a pas construit.
+void MainWindow::verrouillerPourServeur(bool verrouille) {
+    game->setJouable(!verrouille);
+
+    if(verrouille) {
+        installerBot(QString());
+    }
+
+    pbGlouton->setEnabled(!verrouille);
+    pbSpace->setEnabled(!verrouille);
+    pbSpaceAnticp->setEnabled(!verrouille);
+    pbMemoire->setEnabled(!verrouille);
+
+    // Le bouton de pause aussi : c'est le script qui decide desormais quand le
+    // temps passe, et deux mains sur le meme levier ne donnent rien de bon.
+    pbPause->setEnabled(!verrouille);
+    cbStep->setEnabled(!verrouille);
+
+    majPasAPas();
+}
+
+// La case a cocher du serveur. Des qu'elle est cochee, le jeu se fige et attend
+// une connexion : on ne veut pas que la partie coure pendant que le script se
+// connecte, sinon il herite d'un plateau deja entame.
+void MainWindow::on_cbServeur_toggled(bool actif) {
+    if(actif) {
+        if(!serveur->demarrer()) {
+            cbServeur->setChecked(false);
+            return;
+        }
+
+        // En attente d'un client : on fige. serveurChange() relachera des qu'il
+        // sera la.
+        mettreEnPause(true);
+        verrouillerPourServeur(true);
+    } else {
+        serveur->arreter();
+        verrouillerPourServeur(false);
+        mettreEnPause(true);
+    }
+
+    rafraichir();
+}
+
 // Simple bascule : un clic fige la partie (bot compris, battement() ne fait
 // plus rien), le suivant la relache. Sert a immobiliser l'ecran le temps d'une
 // copie d'ecran -- et, au lancement, a tout regler avant que rien ne parte.
@@ -753,9 +903,10 @@ void MainWindow::on_pbPause_clicked() {
         return;
     }
 
-    enPause = !enPause;
-    demarre = demarre || !enPause;
-    majBoutonPause();
+    // Et on passe par mettreEnPause plutot que de basculer le drapeau ici :
+    // c'est aussi le point d'entree de l'API de controle, les deux doivent
+    // faire exactement la meme chose.
+    mettreEnPause(!enPause);
 }
 
 bool MainWindow::partieFinie() const {

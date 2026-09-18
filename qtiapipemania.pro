@@ -1,4 +1,4 @@
-QT       += core gui
+QT       += core gui network
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -21,6 +21,7 @@ equals(PWD, $${OUT_PWD}): error("Compilez dans un repertoire separe : mkdir -p b
 
 SOURCES += \
     bot.cpp \
+    controle.cpp \
     botglouton.cpp \
     botspace.cpp \
     botspaceanticp.cpp \
@@ -28,6 +29,7 @@ SOURCES += \
     bottrace.cpp \
     botfactory.cpp \
     common.cpp \
+    serveurcontrole.cpp \
     dessinpiece.cpp \
     ecoulement.cpp \
     game.cpp \
@@ -44,6 +46,7 @@ SOURCES += \
 
 HEADERS += \
     bot.h \
+    controle.h \
     botglouton.h \
     botspace.h \
     botspaceanticp.h \
@@ -51,6 +54,7 @@ HEADERS += \
     bottrace.h \
     botfactory.h \
     common.h \
+    serveurcontrole.h \
     dessinpiece.h \
     ecoulement.h \
     game.h \

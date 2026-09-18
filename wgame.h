@@ -28,6 +28,9 @@ public:
     // seulement a l'overlay du tas de defausse : la grille ne joue pas le bot.
     void setBot(Bot *bot);
     // Affiche ou non l'overlay du tas de defausse (case a cocher de la fenetre).
+    // Coupe la souris. Le serveur de controle en fait son premier usage : tant
+    // qu'un script joue, la grille regarde et ne touche a rien.
+    void setJouable(bool jouable);
     void setAfficherTas(bool afficher);
     // Affiche ou non le plan de defausse : le reseau que le bot vise quand il
     // jette une piece, en trait fin par-dessus le plateau.
@@ -55,6 +58,7 @@ protected:
 private:
     Partie *partie = nullptr;
     Bot *bot = nullptr;
+    bool jouable = true;
     bool afficherTas = true;
     bool afficherPlan = false;
     bool afficherTrace = false;

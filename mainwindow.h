@@ -6,12 +6,14 @@
 #include <QThreadPool>
 #include <QTimer>
 #include "ui_mainwindow.h"
+#include "controle.h"
 #include "partie.h"
 
 class Bot;
 class Journal;
+class ServeurControle;
 
-class MainWindow : public QMainWindow, private Ui::MainWindow
+class MainWindow : public QMainWindow, private Ui::MainWindow, public HoteControle
 {
     Q_OBJECT
 
@@ -44,7 +46,7 @@ private:
     // Temps de jeu ecoule, en secondes simulees. C'est l'horloge du jeu et du
     // banc, pas celle du mur : si la machine decroche, la partie ralentit mais
     // la mesure reste comparable.
-    float tempsSimule = 0.0f;
+    float tempsSimule_ = 0.0f;
     // Acceleration demandee a la barre d'espace. Sans retour possible : elle ne
     // retombe qu'a la fin de la manche, la suivante ne demarrant pas lancee.
     bool accelereManuel = false;
@@ -100,9 +102,35 @@ private:
     // suit -- seule une image reellement ecrite peut porter un numero, et
     // c'est ce numero qui fait tout l'interet de la ligne.
     QString ligneManche;
+
+    // Le pilotage. `controle` ne connait rien du reseau, `serveur` ne connait
+    // rien du jeu -- c'est la separation qui permet de changer de protocole
+    // sans toucher au reste.
+    Controle *controle = nullptr;
+    ServeurControle *serveur = nullptr;
     QTimer horloge;
 
     void rafraichir();
+
+    // --- HoteControle : ce que le pilotage demande a la fenetre ------------
+    //
+    // Implemente ici et pas ailleurs parce que ce sont exactement les trois
+    // choses que Partie ne sait pas faire seule : arreter le temps, l'avancer
+    // d'un pas, et se remettre d'aplomb autour d'une partie neuve.
+    void mettreEnPause(bool pause) override;
+    bool estEnPause() const override;
+    void avancerDeBattements(int n) override;
+    void espace() override;
+    void partieRemplacee() override;
+    float tempsSimule() const override;
+    bool horlogeVerrouillee() const override;
+
+    // Ferme ou rouvre les trois portes par lesquelles un humain ou un bot
+    // entrent dans le jeu. Quand un script pilote, il est seul a jouer.
+    void verrouillerPourServeur(bool verrouille);
+    // Le serveur a change d'etat : en attente d'un client le jeu reste fige, et
+    // il repart des qu'un client est la.
+    void serveurChange();
     // Ecrit le widget de jeu dans images/ a la racine du projet, un fichier par
     // changement de l'interface. C'est la matiere premiere de la video : le nom
     // est un numero de sequence sur six chiffres, ce qu'attend ffmpeg.
@@ -168,6 +196,7 @@ private slots:
     void on_pbMemoire_clicked();
     void on_pbTrace_clicked();
     void on_pbPause_clicked();
+    void on_cbServeur_toggled(bool actif);
     void on_cbStep_toggled(bool actif);
     void on_pbGeste_clicked();
     void on_pbPose_clicked();

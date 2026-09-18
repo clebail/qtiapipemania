@@ -116,6 +116,10 @@ void WGame::setBot(Bot *bot) {
     update();
 }
 
+void WGame::setJouable(bool jouable) {
+    this->jouable = jouable;
+}
+
 void WGame::setAfficherTas(bool afficher) {
     afficherTas = afficher;
     update();
@@ -991,6 +995,13 @@ void WGame::mouseReleaseEvent(QMouseEvent *event) {
 
     int col = px / spriteW;
     int row = py / spriteH;
+
+    // Grille verrouillee : un script joue, la souris n'a plus voix au chapitre.
+    // Le filtre est ICI et pas dans la fenetre -- c'est ce widget qui appelle
+    // Partie::poserPiece, donc c'est ici que la porte se ferme.
+    if(!jouable) {
+        return;
+    }
 
     // Le bouton droit pose une bombe, le gauche un tuyau. Tout autre bouton ne
     // fait rien : sans ce filtre, un clic du milieu deposerait une piece.
